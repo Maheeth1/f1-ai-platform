@@ -4,3 +4,6 @@ cache/
 *.pkl
 .ipynb_checkpoints/
 .env
+data/raw/
+data/processed/
+ml/reports/
