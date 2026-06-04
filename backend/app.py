@@ -30,9 +30,13 @@ app.add_middleware(
 # MODEL LOADING
 # ==================================================
 
+# Read token from environment to prevent rate limits
+hf_token = os.environ.get("HF_TOKEN")
+
 model_path = hf_hub_download(
     repo_id="Maheeth1/f1-race-predictor",
-    filename="f1_model.pkl"
+    filename="f1_model.pkl",
+    token=hf_token
 )
 
 model = None
