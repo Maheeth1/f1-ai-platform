@@ -10,7 +10,7 @@ import sys
 
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 from src.utils.logger import get_logger
-from src.utils.config import PROCESSED_DATA_DIR
+from src.utils.config import PROCESSED_DATA_DIR, ROOT_DIR
 
 logger = get_logger(__name__)
 
