@@ -43,9 +43,9 @@ model = None
 
 try:
     model = joblib.load(model_path)
-    print("✅ Model loaded successfully")
+    print("SUCCESS: Model loaded successfully")
 except Exception as e:
-    print(f"❌ Failed to load model: {e}")
+    print(f"ERROR: Failed to load model: {e}")
 
 
 # ==================================================

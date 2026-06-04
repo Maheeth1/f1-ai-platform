@@ -4,3 +4,4 @@ pandas
 joblib
 pydantic
 huggingface-hub
+scikit-learn
