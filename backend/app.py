@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Dict
 import joblib
@@ -14,6 +15,15 @@ app = FastAPI(
     title="F1 AI Platform API",
     description="Formula 1 Race Prediction API",
     version="1.0.0"
+)
+
+# Enable CORS for frontend connectivity
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins (update in production if needed)
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
 )
 
 # ==================================================
