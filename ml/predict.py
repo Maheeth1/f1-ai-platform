@@ -1,7 +1,12 @@
 import joblib
 import pandas as pd
+from pathlib import Path
 
-model = joblib.load('f1_model.pkl')
+# Resolve paths relative to the script location
+base_dir = Path(__file__).resolve().parent.parent
+model_path = base_dir / 'ml' / 'f1_model.pkl'
+
+model = joblib.load(model_path)
 
 sample = pd.DataFrame({
     'Driver':[5],
