@@ -61,6 +61,34 @@ def get_session_data(year: int, event_name: str, session_identifier: str) -> Opt
         logger.error(f"Failed to fetch {year} {event_name} {session_identifier}: {str(e)}")
         return None
 
+import concurrent.futures
+
+def process_session(year: int, event_name: str, session_id: str, laps_dir, weather_dir, telemetry_dir):
+    safe_event_name = event_name.replace(" ", "_").replace("/", "")
+    
+    output_laps = laps_dir / f"{year}_{safe_event_name}_{session_id}.csv"
+    output_weather = weather_dir / f"{year}_{safe_event_name}_{session_id}.csv"
+    output_telemetry = telemetry_dir / f"{year}_{safe_event_name}_{session_id}.csv"
+    
+    if output_laps.exists() and output_weather.exists() and output_telemetry.exists():
+        logger.info(f"Skipping {year} {event_name} {session_id} - already downloaded.")
+        return
+        
+    result = get_session_data(year, event_name, session_id)
+    if result:
+        laps, weather, telemetry = result
+        
+        if not laps.empty:
+            laps.to_csv(output_laps, index=False)
+        if not weather.empty:
+            weather.to_csv(output_weather, index=False)
+        if not telemetry.empty:
+            telemetry.to_csv(output_telemetry, index=False)
+            
+        logger.info(f"Saved {len(laps)} laps for {year} {event_name} {session_id}")
+    else:
+        logger.info(f"No data saved for {year} {event_name} {session_id}")
+
 def main():
     setup_fastf1()
     
@@ -72,8 +100,11 @@ def main():
     for d in [laps_dir, weather_dir, telemetry_dir]:
         d.mkdir(parents=True, exist_ok=True)
     
+    # Collect all tasks
+    tasks = []
+    
     for year in TARGET_YEARS:
-        logger.info(f"=== Starting Year {year} ===")
+        logger.info(f"=== Fetching Schedule for Year {year} ===")
         try:
             events = fastf1.get_event_schedule(year)
         except Exception as e:
@@ -85,33 +116,21 @@ def main():
             if event_name == 'Pre-Season Testing':
                 continue
                 
-            logger.info(f"Processing Event: {year} {event_name}")
-            
             for session_id in ['Q', 'R']:
-                safe_event_name = event_name.replace(" ", "_").replace("/", "")
+                tasks.append((year, event_name, session_id, laps_dir, weather_dir, telemetry_dir))
                 
-                output_laps = laps_dir / f"{year}_{safe_event_name}_{session_id}.csv"
-                output_weather = weather_dir / f"{year}_{safe_event_name}_{session_id}.csv"
-                output_telemetry = telemetry_dir / f"{year}_{safe_event_name}_{session_id}.csv"
-                
-                if output_laps.exists() and output_weather.exists() and output_telemetry.exists():
-                    logger.info(f"Skipping {year} {event_name} {session_id} - already downloaded.")
-                    continue
-                    
-                result = get_session_data(year, event_name, session_id)
-                if result:
-                    laps, weather, telemetry = result
-                    
-                    if not laps.empty:
-                        laps.to_csv(output_laps, index=False)
-                    if not weather.empty:
-                        weather.to_csv(output_weather, index=False)
-                    if not telemetry.empty:
-                        telemetry.to_csv(output_telemetry, index=False)
-                        
-                    logger.info(f"Saved {len(laps)} laps for {year} {event_name} {session_id}")
-                else:
-                    logger.info(f"No data saved for {year} {event_name} {session_id}")
+    logger.info(f"Total sessions to process: {len(tasks)}")
+    
+    # Run concurrently using ThreadPoolExecutor
+    # max_workers=4 prevents overwhelming the API and getting rate limited
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        futures = [executor.submit(process_session, *task) for task in tasks]
+        
+        for future in concurrent.futures.as_completed(futures):
+            try:
+                future.result()
+            except Exception as exc:
+                logger.error(f"A session processing task generated an exception: {exc}")
 
 if __name__ == "__main__":
     main()
