@@ -1,33 +1,136 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field
+from typing import Dict
 import joblib
 import pandas as pd
-from pathlib import Path
+from huggingface_hub import hf_hub_download
+import os
 
-app = FastAPI()
+# ==================================================
+# APP CONFIG
+# ==================================================
 
-# Resolve paths relative to the script location
-base_dir = Path(__file__).resolve().parent.parent
-model_path = base_dir / 'ml' / 'f1_model.pkl'
+app = FastAPI(
+    title="F1 AI Platform API",
+    description="Formula 1 Race Prediction API",
+    version="1.0.0"
+)
 
-model = joblib.load(model_path)
+# ==================================================
+# MODEL LOADING
+# ==================================================
+
+model_path = hf_hub_download(
+    repo_id="Maheeth1/f1-race-predictor",
+    filename="f1_model.pkl"
+)
+
+model = None
+
+try:
+    model = joblib.load(model_path)
+    print("✅ Model loaded successfully")
+except Exception as e:
+    print(f"❌ Failed to load model: {e}")
+
+
+# ==================================================
+# REQUEST SCHEMA
+# ==================================================
+
+class PredictionRequest(BaseModel):
+    Driver: int = Field(..., ge=0)
+    LapNumber: int = Field(..., ge=1)
+    TyreLife: int = Field(..., ge=0)
+
+
+# ==================================================
+# HEALTH CHECK
+# ==================================================
 
 @app.get("/")
-def home():
+def root():
     return {
-        "message":"F1 AI API Running"
+        "message": "F1 AI Platform Running"
     }
 
-@app.get("/predict")
-def predict():
 
-    sample = pd.DataFrame({
-        'Driver':[5],
-        'LapNumber':[20],
-        'TyreLife':[15]
-    })
+@app.get("/health")
+def health():
+    return {
+        "status": "healthy",
+        "model_loaded": model is not None
+    }
 
-    result = model.predict(sample)
+
+# ==================================================
+# MODEL INFO
+# ==================================================
+
+@app.get("/model-info")
+def model_info():
+
+    if model is None:
+        raise HTTPException(
+            status_code=500,
+            detail="Model not loaded"
+        )
 
     return {
-        "prediction": float(result[0])
+        "model_type": type(model).__name__,
+        "features": [
+            "Driver",
+            "LapNumber",
+            "TyreLife"
+        ]
+    }
+
+
+# ==================================================
+# PREDICTION ENDPOINT
+# ==================================================
+
+@app.post("/predict")
+def predict(data: PredictionRequest):
+
+    if model is None:
+        raise HTTPException(
+            status_code=500,
+            detail="Model not loaded"
+        )
+
+    try:
+
+        input_df = pd.DataFrame({
+            "Driver": [data.Driver],
+            "LapNumber": [data.LapNumber],
+            "TyreLife": [data.TyreLife]
+        })
+
+        prediction = model.predict(input_df)
+
+        return {
+            "predicted_position": round(
+                float(prediction[0]), 2
+            )
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+
+# ==================================================
+# SAMPLE DATA ENDPOINT
+# ==================================================
+
+@app.get("/sample-request")
+def sample_request():
+
+    return {
+        "Driver": 5,
+        "LapNumber": 20,
+        "TyreLife": 15
     }
