@@ -52,7 +52,8 @@ export default function App() {
   const [modelFeatures, setModelFeatures] = useState<string[]>([]);
   const [checkingHealth, setCheckingHealth] = useState<boolean>(false);
 
-  const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+  // Strip trailing slashes to prevent //health 404 errors
+  const API_BASE_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '');
 
   // Check backend health
   const checkHealth = async () => {
