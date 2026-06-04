@@ -11,7 +11,8 @@ if IN_COLAB:
     DATA_DIR = ROOT_DIR / "data"
     RAW_DATA_DIR = DATA_DIR / "raw"
     PROCESSED_DATA_DIR = DATA_DIR / "processed"
-    CACHE_DIR = ROOT_DIR / "cache"
+    # CRITICAL FIX: Use local Colab storage for the Cache to prevent SQLite database locks over Google Drive
+    CACHE_DIR = Path('/content/f1_cache')
 else:
     # Project Roots for local execution
     ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent

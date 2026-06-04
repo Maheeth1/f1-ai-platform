@@ -86,6 +86,11 @@ def process_session(year: int, event_name: str, session_id: str, laps_dir, weath
             telemetry.to_csv(output_telemetry, index=False)
             
         logger.info(f"Saved {len(laps)} laps for {year} {event_name} {session_id}")
+        
+        # Explicitly free memory
+        del laps, weather, telemetry, result
+        import gc
+        gc.collect()
     else:
         logger.info(f"No data saved for {year} {event_name} {session_id}")
 
@@ -121,9 +126,9 @@ def main():
                 
     logger.info(f"Total sessions to process: {len(tasks)}")
     
-    # Run concurrently using ThreadPoolExecutor
-    # max_workers=4 prevents overwhelming the API and getting rate limited
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+    # Run sequentially or with max_workers=1 to prevent Colab from running out of RAM 
+    # (FastF1 uses ~2GB RAM per session, and DataFrames take significant memory)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         futures = [executor.submit(process_session, *task) for task in tasks]
         
         for future in concurrent.futures.as_completed(futures):
