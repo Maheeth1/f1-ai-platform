@@ -45,6 +45,17 @@ def get_session_data(year: int, event_name: str, session_identifier: str) -> Opt
         laps['RoundNumber'] = session.event['RoundNumber']
         laps['SessionType'] = session.name
         
+        # Additional Context
+        if 'Team' in session.laps.columns:
+            laps['Team'] = session.laps['Team']
+        if 'Compound' in session.laps.columns:
+            laps['Compound'] = session.laps['Compound']
+            
+        # Parse TrackStatus for Safety Car
+        if 'TrackStatus' in session.laps.columns:
+            laps['IsSafetyCar'] = session.laps['TrackStatus'].astype(str).str.contains('4', na=False)
+            laps['IsVirtualSafetyCar'] = session.laps['TrackStatus'].astype(str).str.contains('6', na=False)
+        
         if 'Driver' not in laps.columns:
             logger.warning(f"No Driver column in {year} {event_name}")
 

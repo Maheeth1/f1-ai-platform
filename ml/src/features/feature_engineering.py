@@ -115,6 +115,32 @@ def generate_historical_features(df: pd.DataFrame) -> pd.DataFrame:
                 
     return df
 
+def generate_advanced_race_features(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Calculates advanced race features like Fuel Effect and Track Evolution.
+    """
+    logger.info("Generating Advanced Race Features...")
+    
+    # Fuel Effect: Assumption that burning fuel saves ~0.06 seconds per lap
+    if 'LapNumber' in df.columns:
+        df['FuelEffect'] = df['LapNumber'] * 0.06
+    else:
+        df['FuelEffect'] = np.nan
+        
+    # Track Evolution: The minimum PrevLapTime recorded in the session up to the current point
+    if 'PrevLapTime' in df.columns and 'LapNumber' in df.columns:
+        # Sort chronologically across all drivers to compute session-wide evolution
+        df = df.sort_values(by=['Year', 'EventName', 'SessionType', 'LapNumber'])
+        session_group = df.groupby(['Year', 'EventName', 'SessionType'])
+        df['TrackEvolution'] = session_group['PrevLapTime'].transform(lambda x: x.expanding().min())
+        
+        # Re-sort back to driver-focused ordering for consistency
+        df = df.sort_values(by=['Year', 'EventName', 'SessionType', 'Driver', 'LapNumber'])
+    else:
+        df['TrackEvolution'] = np.nan
+        
+    return df
+
 def run_feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
     """
     Runs the full feature engineering pipeline sequentially.
@@ -127,6 +153,7 @@ def run_feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
     df = generate_race_features(df)
     df = generate_track_features(df)
     df = generate_historical_features(df)
+    df = generate_advanced_race_features(df)
     
     logger.info(f"Feature engineering complete. Total features: {len(df.columns)}")
     return df
