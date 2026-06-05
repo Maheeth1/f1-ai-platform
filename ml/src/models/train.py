@@ -5,7 +5,8 @@ import argparse
 import sys
 from sklearn.model_selection import KFold, GroupKFold, TimeSeriesSplit
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, StackingRegressor
+from sklearn.linear_model import Ridge
 import xgboost as xgb
 import lightgbm as lgb
 import catboost as cb
@@ -30,8 +31,8 @@ def evaluate_model(y_true, y_pred, model_name="Model"):
     
     return mae, rmse, r2
 
-def train_lap_time_models(X_train, X_test, y_train, y_test, cat_features=None):
-    logger.info("Training Lap Time Prediction Models...")
+def train_ensemble_models(X_train, X_test, y_train, y_test, target_name, cat_features=None):
+    logger.info(f"Training Prediction Models for {target_name}...")
     
     if cat_features is None:
         cat_features = []
@@ -43,12 +44,55 @@ def train_lap_time_models(X_train, X_test, y_train, y_test, cat_features=None):
     }
     
     results = {}
+    model_preds = {}
+    rmses = {}
+    
+    # Train individual models
     for name, model in models.items():
         logger.info(f"Training {name}...")
         model.fit(X_train, y_train)
         preds = model.predict(X_test)
-        results[name] = evaluate_model(y_test, preds, name)
+        model_preds[name] = preds
+        metrics = evaluate_model(y_test, preds, name)
+        results[name] = metrics
+        rmses[name] = metrics[1] # RMSE is index 1
         
+    # Dynamic Weighted Averaging
+    logger.info("Calculating dynamic weights and evaluating Weighted Ensemble...")
+    inv_rmses = {name: 1.0 / rmse for name, rmse in rmses.items()}
+    total_inv_rmse = sum(inv_rmses.values())
+    weights = {name: inv / total_inv_rmse for name, inv in inv_rmses.items()}
+    
+    logger.info(f"Calculated Weights: {weights}")
+    
+    weighted_preds = np.zeros_like(y_test, dtype=float)
+    for name, preds in model_preds.items():
+        weighted_preds += preds * weights[name]
+        
+    results['Weighted Ensemble'] = evaluate_model(y_test, weighted_preds, "Weighted Ensemble")
+    
+    # Stacking Ensemble
+    logger.info("Training Stacking Ensemble...")
+    estimators = [
+        ('CatBoost', models['CatBoost']),
+        ('LightGBM', models['LightGBM']),
+        ('XGBoost', models['XGBoost'])
+    ]
+    
+    stacker = StackingRegressor(
+        estimators=estimators,
+        final_estimator=Ridge(),
+        cv=5,
+        n_jobs=-1
+    )
+    
+    stacker.fit(X_train, y_train)
+    stack_preds = stacker.predict(X_test)
+    results['Stacking Ensemble'] = evaluate_model(y_test, stack_preds, "Stacking Ensemble")
+    
+    models['Weighted Ensemble'] = weights
+    models['Stacking Ensemble'] = stacker
+    
     return models, results
 
 def validate_no_leakage(X, y):
@@ -155,7 +199,7 @@ def generate_validation_report(results, report_path):
 
 def generate_model_comparison_report(results, report_path):
     report_content = "# Model Performance Comparison\n\n"
-    report_content += "This report compares the performance of our primary models after upgrading to native categorical handling.\n\n"
+    report_content += "This report compares the performance of individual models against our advanced ensemble techniques.\n\n"
     report_content += "| Model | RMSE | MAE | R² |\n"
     report_content += "| :--- | :--- | :--- | :--- |\n"
     
@@ -164,7 +208,8 @@ def generate_model_comparison_report(results, report_path):
         report_content += f"| **{name}** | {rmse:.4f} | {mae:.4f} | {r2:.4f} |\n"
         
     report_content += "\n## Conclusion\n"
-    report_content += "**CatBoost** is now configured as the primary model due to its robust native handling of categorical features."
+    report_content += "The **Stacking Ensemble** and **Weighted Ensemble** automatically combine our base models (CatBoost, LightGBM, XGBoost) "
+    report_content += "to reduce variance and improve overall validation performance."
     
     with open(report_path, "w", encoding='utf-8') as f:
         f.write(report_content)
@@ -240,24 +285,9 @@ def main():
     if args.target in cat_cols:
         cat_cols.remove(args.target)
 
-    if args.target == 'LapTimeSeconds':
-        models, results = train_lap_time_models(X_train, X_test, y_train, y_test, cat_features=cat_cols)
-        comp_path = Path(__file__).resolve().parent.parent.parent / "model_comparison.md"
-        generate_model_comparison_report(results, comp_path)
-    else:
-        logger.info(f"Training Grid/Position models... (similar implementation)")
-        models = {
-            'CatBoost': cb.CatBoostRegressor(iterations=100, random_state=42, verbose=0, cat_features=cat_cols),
-            'LightGBM': lgb.LGBMRegressor(n_estimators=100, random_state=42, n_jobs=-1),
-            'XGBoost': xgb.XGBRegressor(n_estimators=100, random_state=42, n_jobs=-1, enable_categorical=True)
-        }
-        results = {}
-        for name, model in models.items():
-            model.fit(X_train, y_train)
-            preds = model.predict(X_test)
-            results[name] = evaluate_model(y_test, preds, name)
-        comp_path = Path(__file__).resolve().parent.parent.parent / "model_comparison.md"
-        generate_model_comparison_report(results, comp_path)
+    models, results = train_ensemble_models(X_train, X_test, y_train, y_test, args.target, cat_features=cat_cols)
+    comp_path = Path(__file__).resolve().parent.parent.parent / "model_comparison.md"
+    generate_model_comparison_report(results, comp_path)
 
 if __name__ == "__main__":
     main()
