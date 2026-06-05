@@ -30,14 +30,16 @@ def evaluate_model(y_true, y_pred, model_name="Model"):
     
     return mae, rmse, r2
 
-def train_lap_time_models(X_train, X_test, y_train, y_test):
+def train_lap_time_models(X_train, X_test, y_train, y_test, cat_features=None):
     logger.info("Training Lap Time Prediction Models...")
     
+    if cat_features is None:
+        cat_features = []
+        
     models = {
-        'RandomForest': RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1),
-        'XGBoost': xgb.XGBRegressor(n_estimators=100, random_state=42, n_jobs=-1),
+        'CatBoost': cb.CatBoostRegressor(iterations=200, random_state=42, verbose=0, cat_features=cat_features),
         'LightGBM': lgb.LGBMRegressor(n_estimators=100, random_state=42, n_jobs=-1),
-        'CatBoost': cb.CatBoostRegressor(iterations=100, random_state=42, verbose=0)
+        'XGBoost': xgb.XGBRegressor(n_estimators=100, random_state=42, n_jobs=-1, enable_categorical=True)
     }
     
     results = {}
@@ -151,6 +153,23 @@ def generate_validation_report(results, report_path):
         f.write(report_content)
     logger.info(f"Validation report saved to {report_path}")
 
+def generate_model_comparison_report(results, report_path):
+    report_content = "# Model Performance Comparison\n\n"
+    report_content += "This report compares the performance of our primary models after upgrading to native categorical handling.\n\n"
+    report_content += "| Model | RMSE | MAE | R² |\n"
+    report_content += "| :--- | :--- | :--- | :--- |\n"
+    
+    for name, metrics in results.items():
+        mae, rmse, r2 = metrics
+        report_content += f"| **{name}** | {rmse:.4f} | {mae:.4f} | {r2:.4f} |\n"
+        
+    report_content += "\n## Conclusion\n"
+    report_content += "**CatBoost** is now configured as the primary model due to its robust native handling of categorical features."
+    
+    with open(report_path, "w", encoding='utf-8') as f:
+        f.write(report_content)
+    logger.info(f"Model comparison report saved to {report_path}")
+
 def main():
     parser = argparse.ArgumentParser(description="Train F1 Models")
     parser.add_argument('--target', type=str, default='LapTimeSeconds', 
@@ -184,9 +203,12 @@ def main():
     ]
     df = df.drop(columns=[col for col in drop_cols if col in df.columns], errors='ignore')
     
-    # Encode categoricals
-    cat_cols = df.select_dtypes(include=['object']).columns
-    df = pd.get_dummies(df, columns=cat_cols, drop_first=True)
+    # Automatically identify categorical columns
+    cat_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
+    
+    # Use native categorical handling instead of one-hot encoding
+    for col in cat_cols:
+        df[col] = df[col].astype(str).fillna("missing").astype('category')
 
     # Prepare features and target
     if args.target not in df.columns:
@@ -215,19 +237,27 @@ def main():
 
     logger.info(f"Training on {X_train.shape[0]} rows, testing on {X_test.shape[0]} rows.")
     
+    if args.target in cat_cols:
+        cat_cols.remove(args.target)
+
     if args.target == 'LapTimeSeconds':
-        train_lap_time_models(X_train, X_test, y_train, y_test)
+        models, results = train_lap_time_models(X_train, X_test, y_train, y_test, cat_features=cat_cols)
+        comp_path = Path(__file__).resolve().parent.parent.parent / "model_comparison.md"
+        generate_model_comparison_report(results, comp_path)
     else:
         logger.info(f"Training Grid/Position models... (similar implementation)")
-        # For Position Prediction, typically just XGBoost and CatBoost as requested
         models = {
-            'XGBoost': xgb.XGBRegressor(n_estimators=100, random_state=42, n_jobs=-1),
-            'CatBoost': cb.CatBoostRegressor(iterations=100, random_state=42, verbose=0)
+            'CatBoost': cb.CatBoostRegressor(iterations=100, random_state=42, verbose=0, cat_features=cat_cols),
+            'LightGBM': lgb.LGBMRegressor(n_estimators=100, random_state=42, n_jobs=-1),
+            'XGBoost': xgb.XGBRegressor(n_estimators=100, random_state=42, n_jobs=-1, enable_categorical=True)
         }
+        results = {}
         for name, model in models.items():
             model.fit(X_train, y_train)
             preds = model.predict(X_test)
-            evaluate_model(y_test, preds, name)
+            results[name] = evaluate_model(y_test, preds, name)
+        comp_path = Path(__file__).resolve().parent.parent.parent / "model_comparison.md"
+        generate_model_comparison_report(results, comp_path)
 
 if __name__ == "__main__":
     main()
