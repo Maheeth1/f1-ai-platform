@@ -1,6 +1,6 @@
-fastapi==0.104.1
-uvicorn==0.24.0.post1
-pydantic==2.5.2
+fastapi
+uvicorn
+pydantic
 pandas>=2.0.0
 numpy>=1.24.0
 scikit-learn>=1.3.0
