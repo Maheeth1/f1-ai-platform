@@ -2,6 +2,9 @@ import os
 from pathlib import Path
 import sys
 
+# Environment configurations
+ENV = os.getenv("ENV", "development")
+
 # Detect if running in Google Colab
 IN_COLAB = 'google.colab' in sys.modules
 
@@ -11,11 +14,16 @@ if IN_COLAB:
     DATA_DIR = ROOT_DIR / "data"
     RAW_DATA_DIR = DATA_DIR / "raw"
     PROCESSED_DATA_DIR = DATA_DIR / "processed"
-    # CRITICAL FIX: Use local Colab storage for the Cache to prevent SQLite database locks over Google Drive
     CACHE_DIR = Path('/content/f1_cache')
 else:
-    # Project Roots for local execution
-    ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
+    # Project Roots for local/docker execution
+    # If DOCKER_ROOT is set, use it, otherwise use file relative path
+    docker_root = os.getenv("APP_ROOT")
+    if docker_root:
+        ROOT_DIR = Path(docker_root)
+    else:
+        ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
+        
     DATA_DIR = ROOT_DIR / "data"
     RAW_DATA_DIR = DATA_DIR / "raw"
     PROCESSED_DATA_DIR = DATA_DIR / "processed"
