@@ -16,6 +16,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 
 from src.utils.logger import get_logger
 from src.utils.config import PROCESSED_DATA_DIR
+from src.models import registry
 
 logger = get_logger(__name__)
 
@@ -288,6 +289,20 @@ def main():
     models, results = train_ensemble_models(X_train, X_test, y_train, y_test, args.target, cat_features=cat_cols)
     comp_path = Path(__file__).resolve().parent.parent.parent / "model_comparison.md"
     generate_model_comparison_report(results, comp_path)
+    
+    # Save the best model to the registry (Stacking Ensemble)
+    best_model = models['Stacking Ensemble']
+    best_metrics = results['Stacking Ensemble']
+    
+    logger.info("Saving Stacking Ensemble to artifact registry...")
+    version = registry.save_model(
+        model=best_model,
+        target_name=args.target,
+        metrics=best_metrics,
+        feature_list=list(X.columns),
+        model_type="StackingEnsemble"
+    )
+    logger.info(f"Model successfully saved as version: {version}")
 
 if __name__ == "__main__":
     main()
