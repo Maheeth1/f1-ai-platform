@@ -102,6 +102,10 @@ def process_session(year: int, event_name: str, session_id: str, laps_dir, weath
         del laps, weather, telemetry, result
         import gc
         gc.collect()
+        
+        # Add a short delay to prevent API rate limiting from F1 servers
+        import time
+        time.sleep(2)
     else:
         logger.info(f"No data saved for {year} {event_name} {session_id}")
 
