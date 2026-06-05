@@ -1,0 +1,12 @@
+{
+    "training_date": "2026-06-05T23:33:19.189209",
+    "model_type": "StackingEnsemble",
+    "target": "LapTimeSeconds",
+    "version": "v20260605_233317",
+    "metrics": [
+        9.845898820878654,
+        12.606053988458477,
+        0.29865009020903843
+    ],
+    "dataset_version": "latest"
+}

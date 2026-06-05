@@ -6,4 +6,5 @@ cache/
 .env
 data/raw/
 data/processed/
-ml/reports/
+ml/reports/
+*.sqlite*

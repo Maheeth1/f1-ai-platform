@@ -55,10 +55,11 @@ def objective(trial, X, y, cat_cols):
                 'verbose': -1
             }
             model = lgb.LGBMRegressor(**param)
-            callbacks = [LightGBMPruningCallback(trial, "valid_0")]
+            callbacks = [LightGBMPruningCallback(trial, "rmse", valid_name="valid_0")]
             model.fit(X_tr, y_tr, eval_set=[(X_te, y_te)], eval_metric="rmse", callbacks=callbacks)
             
         elif model_type == 'XGBoost':
+            pruning_callback = XGBoostPruningCallback(trial, "validation_0-rmse")
             param = {
                 'n_estimators': trial.suggest_int('xgb_n_estimators', 100, 500),
                 'max_depth': trial.suggest_int('xgb_max_depth', 3, 10),
@@ -67,11 +68,11 @@ def objective(trial, X, y, cat_cols):
                 'colsample_bytree': trial.suggest_float('xgb_colsample', 0.6, 1.0),
                 'enable_categorical': True,
                 'random_state': 42,
-                'n_jobs': -1
+                'n_jobs': -1,
+                'callbacks': [pruning_callback]
             }
             model = xgb.XGBRegressor(**param)
-            pruning_callback = XGBoostPruningCallback(trial, "validation_0-rmse")
-            model.fit(X_tr, y_tr, eval_set=[(X_te, y_te)], verbose=False, callbacks=[pruning_callback])
+            model.fit(X_tr, y_tr, eval_set=[(X_te, y_te)], verbose=False)
             
         preds = model.predict(X_te)
         rmse = np.sqrt(mean_squared_error(y_te, preds))
@@ -140,6 +141,12 @@ def run_tuning(target='LapTimeSeconds', n_trials=50, n_jobs=-1):
         
     X = df.drop(columns=[target], errors='ignore')
     y = df[target] if target in df.columns else None
+    
+    # Drop rows where target is NaN
+    if y is not None:
+        valid_idx = y.notna()
+        X = X[valid_idx]
+        y = y[valid_idx]
     
     if y is None:
         logger.error(f"Target '{target}' not found!")

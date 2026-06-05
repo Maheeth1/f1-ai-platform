@@ -1,0 +1,7 @@
+{
+    "model_type": "LightGBM",
+    "lgb_n_estimators": 103,
+    "lgb_max_depth": 4,
+    "lgb_lr": 0.024816713558637658,
+    "lgb_num_leaves": 54
+}

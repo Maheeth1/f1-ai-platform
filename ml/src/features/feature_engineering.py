@@ -10,12 +10,15 @@ def generate_rolling_pace(df: pd.DataFrame) -> pd.DataFrame:
     Assumes dataframe is sorted by Year, EventName, SessionType, Driver, and LapNumber.
     """
     logger.info("Generating Rolling Pace Features...")
-    # Convert LapTime timedelta to seconds if not already
-    if pd.api.types.is_timedelta64_dtype(df['LapTime']):
-        df['LapTimeSeconds'] = df['LapTime'].dt.total_seconds()
-    elif 'LapTimeSeconds' not in df.columns:
-        # Fallback if LapTime is a string or already float
-        df['LapTimeSeconds'] = pd.to_numeric(df['LapTime'], errors='coerce')
+    if 'LapTimeSeconds' not in df.columns:
+        if 'LapTime' in df.columns:
+            # Handle string timedeltas from CSV (e.g., '0 days 00:13:00.566000')
+            if pd.api.types.is_timedelta64_dtype(df['LapTime']):
+                df['LapTimeSeconds'] = df['LapTime'].dt.total_seconds()
+            else:
+                td = pd.to_timedelta(df['LapTime'], errors='coerce')
+                # If parsed as timedelta, get seconds. If parsing failed (e.g. already float), fallback to numeric
+                df['LapTimeSeconds'] = td.dt.total_seconds().fillna(pd.to_numeric(df['LapTime'], errors='coerce'))
         
     group = df.groupby(['Year', 'EventName', 'SessionType', 'Driver'])
     
@@ -109,9 +112,10 @@ def generate_historical_features(df: pd.DataFrame) -> pd.DataFrame:
             # Shift the feature and create a 'Prev' version
             df[f'Prev{col}'] = group[col].shift(1)
             
-            # If the column is a timedelta, convert the shifted version to seconds
-            if pd.api.types.is_timedelta64_dtype(df[f'Prev{col}']):
-                df[f'Prev{col}Seconds'] = df[f'Prev{col}'].dt.total_seconds()
+            # Check if it looks like a timedelta string (contains 'days' or ':') or is natively timedelta
+            if pd.api.types.is_timedelta64_dtype(df[f'Prev{col}']) or (df[f'Prev{col}'].astype(str).str.contains('days|:', regex=True).any()):
+                td = pd.to_timedelta(df[f'Prev{col}'], errors='coerce')
+                df[f'Prev{col}Seconds'] = td.dt.total_seconds().fillna(pd.to_numeric(df[f'Prev{col}'], errors='coerce'))
                 
     return df
 

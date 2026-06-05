@@ -19,11 +19,25 @@ class RaceSimulator:
         """
         logger.info("Initializing Race Simulator...")
         try:
+            # Backward compatibility for models pickled with __main__.AutoCatBoostRegressor
+            import sys
+            from src.models.wrappers import AutoCatBoostRegressor
+            setattr(sys.modules['__main__'], 'AutoCatBoostRegressor', AutoCatBoostRegressor)
+            
             self.artifacts = registry.load_model(target_name=target_name, version=version)
             self.model = self.artifacts['model']
             self.features = self.artifacts['features']
             self.metadata = self.artifacts['metadata']
             self.rmse = self.metadata['metrics'][1] # Assuming metric order is [MAE, RMSE, R2]
+            
+            # Identify categorical features from the CatBoost base estimator if present
+            self.cat_features = []
+            if hasattr(self.model, 'estimators_'):
+                for est in self.model.estimators_:
+                    if hasattr(est, 'get_cat_feature_indices'):
+                        self.cat_features = [self.features[i] for i in est.get_cat_feature_indices()]
+                        break
+                        
             logger.info(f"Loaded {self.metadata['model_type']} (v{self.metadata['version']}) with baseline RMSE: {self.rmse:.4f}")
         except Exception as e:
             logger.error(f"Failed to load model artifacts: {e}")
@@ -54,12 +68,20 @@ class RaceSimulator:
         # Ensure all required features are present and ordered
         for f in self.features:
             if f not in lap_df.columns:
-                lap_df[f] = 0.0 # Default fill for missing historical/telemetry data
+                if hasattr(self, 'cat_features') and f in self.cat_features:
+                    lap_df[f] = "missing"
+                else:
+                    lap_df[f] = 0.0 # Default fill for missing historical/telemetry data
                 
         # Handle categoricals if needed
-        cat_cols = lap_df[self.features].select_dtypes(include=['object']).columns
-        for col in cat_cols:
-            lap_df[col] = lap_df[col].astype(str).astype('category')
+        if hasattr(self, 'cat_features') and self.cat_features:
+            for col in self.cat_features:
+                if col in lap_df.columns:
+                    lap_df[col] = lap_df[col].astype(str).astype('category')
+        else:
+            cat_cols = lap_df[self.features].select_dtypes(include=['object']).columns
+            for col in cat_cols:
+                lap_df[col] = lap_df[col].astype(str).astype('category')
             
         return lap_df[self.features]
 
@@ -157,8 +179,13 @@ if __name__ == "__main__":
             'Team': ['Red Bull Racing', 'McLaren', 'Ferrari', 'Ferrari', 'Mercedes', 'Mercedes', 'Red Bull Racing', 'McLaren', 'Aston Martin', 'Aston Martin'],
             'Compound': ['MEDIUM'] * 10,
             'Year': [2024] * 10,
-            'EventName': ['Mock Grand Prix'] * 10,
+            'EventName': ['Monaco Grand Prix'] * 10,
+            'Country': ['Monaco'] * 10,
+            'Circuit': ['Monaco'] * 10,
             'SessionType': ['Race'] * 10,
+            'PrevSector1Time': ['missing'] * 10,
+            'PrevSector2Time': ['missing'] * 10,
+            'PrevSector3Time': ['missing'] * 10,
             'IsSafetyCar': [False] * 10,
             'IsVirtualSafetyCar': [False] * 10,
             'AirTemp': [25.0] * 10,

@@ -17,6 +17,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 from src.utils.logger import get_logger
 from src.utils.config import PROCESSED_DATA_DIR
 from src.models import registry, explainability
+from src.models.wrappers import AutoCatBoostRegressor
 
 logger = get_logger(__name__)
 
@@ -39,7 +40,7 @@ def train_ensemble_models(X_train, X_test, y_train, y_test, target_name, cat_fea
         cat_features = []
         
     models = {
-        'CatBoost': cb.CatBoostRegressor(iterations=200, random_state=42, verbose=0, cat_features=cat_features),
+        'CatBoost': AutoCatBoostRegressor(iterations=200, random_state=42, verbose=0),
         'LightGBM': lgb.LGBMRegressor(n_estimators=100, random_state=42, n_jobs=-1),
         'XGBoost': xgb.XGBRegressor(n_estimators=100, random_state=42, n_jobs=-1, enable_categorical=True)
     }
