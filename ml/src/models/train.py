@@ -49,6 +49,35 @@ def train_lap_time_models(X_train, X_test, y_train, y_test):
         
     return models, results
 
+def validate_no_leakage(X, y):
+    logger.info("Validating dataset for data leakage...")
+    
+    LEAKAGE_COLS = [
+        'Time', 'LapTime', 'PitOutTime', 'PitInTime', 'Sector1Time', 'Sector2Time', 'Sector3Time',
+        'LapStartTime', 'LapStartDate', 'Position', 'SpeedI1', 'SpeedI2', 'SpeedFL', 'SpeedST',
+        'IsPersonalBest', 'Sector1SessionTime', 'Sector2SessionTime', 'Sector3SessionTime',
+        'AvgSpeed', 'MaxSpeed', 'MinSpeed', 'AvgThrottle', 'MaxThrottle', 'BrakePercentage',
+        'DRSPercentage', 'AvgRPM', 'MaxRPM', 'AvgGear', 'CorneringSpeed', 'TrackStatus', 'IsAccurate'
+    ]
+    
+    leaking_cols_present = [col for col in LEAKAGE_COLS if col in X.columns]
+    if y.name in X.columns:
+        leaking_cols_present.append(y.name)
+        
+    if leaking_cols_present:
+        raise ValueError(f"Data leakage detected! The following columns contain future information: {leaking_cols_present}")
+        
+    numeric_cols = X.select_dtypes(include=[np.number]).columns
+    if len(numeric_cols) > 0 and len(X) > 1:
+        # Check for abnormally high correlation
+        correlations = X[numeric_cols].apply(lambda col: col.corr(y)).abs()
+        leakers = correlations[correlations > 0.98].index.tolist()
+        
+        if leakers:
+            raise ValueError(f"Data leakage detected! Features with >0.98 correlation with target: {leakers}")
+    
+    logger.info("Leakage validation passed.")
+
 def main():
     parser = argparse.ArgumentParser(description="Train F1 Models")
     parser.add_argument('--target', type=str, default='LapTimeSeconds', 
@@ -63,9 +92,14 @@ def main():
 
     df = pd.read_csv(data_path)
     
-    # Drop columns that shouldn't be features (leakage)
-    drop_cols = ['Time', 'LapTime', 'PitOutTime', 'PitInTime', 'Sector1Time', 'Sector2Time', 'Sector3Time',
-                 'LapStartTime', 'LapStartDate']
+    # Drop all columns containing current-lap information (leakage)
+    drop_cols = [
+        'Time', 'LapTime', 'PitOutTime', 'PitInTime', 'Sector1Time', 'Sector2Time', 'Sector3Time',
+        'LapStartTime', 'LapStartDate', 'Position', 'SpeedI1', 'SpeedI2', 'SpeedFL', 'SpeedST',
+        'IsPersonalBest', 'Sector1SessionTime', 'Sector2SessionTime', 'Sector3SessionTime',
+        'AvgSpeed', 'MaxSpeed', 'MinSpeed', 'AvgThrottle', 'MaxThrottle', 'BrakePercentage',
+        'DRSPercentage', 'AvgRPM', 'MaxRPM', 'AvgGear', 'CorneringSpeed', 'TrackStatus', 'IsAccurate'
+    ]
     df = df.drop(columns=[col for col in drop_cols if col in df.columns], errors='ignore')
     
     # Encode categoricals
@@ -79,6 +113,9 @@ def main():
         
     X = df.drop(columns=[args.target])
     y = df[args.target]
+    
+    # Run Leakage Validation
+    validate_no_leakage(X, y)
 
     # Time-based split (e.g. use earlier years to predict later years, or just random split for now)
     # A robust split for F1 is essential. Random split for demonstration.

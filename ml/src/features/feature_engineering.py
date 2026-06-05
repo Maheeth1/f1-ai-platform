@@ -32,7 +32,7 @@ def generate_rolling_pace(df: pd.DataFrame) -> pd.DataFrame:
 
 def generate_tire_features(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Calculates Tire Age, Tire Degradation Index, and Stint Progress.
+    Calculates Tire Age, Tire Degradation Index.
     """
     logger.info("Generating Tire Features...")
     # FastF1 typically provides TyreLife. If not, we estimate it from Stint and LapNumber.
@@ -40,30 +40,32 @@ def generate_tire_features(df: pd.DataFrame) -> pd.DataFrame:
         group = df.groupby(['Year', 'EventName', 'SessionType', 'Driver', 'Stint'])
         df['TyreLife'] = group.cumcount() + 1
         
-    # Tire Degradation Index = (Current Lap Time - Stint Best Lap Time)
+    # Fix Target Leakage: use rolling min of PrevLapTime for StintBestLap
     stint_group = df.groupby(['Year', 'EventName', 'SessionType', 'Driver', 'Stint'])
-    df['StintBestLap'] = stint_group['LapTimeSeconds'].transform('min')
-    df['TireDegradationIndex'] = df['LapTimeSeconds'] - df['StintBestLap']
     
-    # Stint Progress = TyreLife / Max TyreLife in that stint
-    df['StintMaxLife'] = stint_group['TyreLife'].transform('max')
-    df['StintProgress'] = df['TyreLife'] / df['StintMaxLife']
+    if 'PrevLapTime' in df.columns:
+        df['StintBestLapSoFar'] = stint_group['PrevLapTime'].cummin()
+        df['TireDegradationIndex'] = df['PrevLapTime'] - df['StintBestLapSoFar']
+        df.drop(columns=['StintBestLapSoFar'], inplace=True, errors='ignore')
+    else:
+        df['TireDegradationIndex'] = np.nan
+        
+    # Note: StintMaxLife and StintProgress removed due to future data leakage
     
-    # Drop intermediate columns
-    df.drop(columns=['StintBestLap', 'StintMaxLife'], inplace=True, errors='ignore')
     return df
 
 def generate_race_features(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Calculates Gap To Leader, Position Change, and Current Race Position.
+    Calculates Position Change based on historical position to avoid leakage.
     """
     logger.info("Generating Race Features...")
     
     if 'Position' in df.columns:
-        # Position change since Lap 1
         driver_group = df.groupby(['Year', 'EventName', 'SessionType', 'Driver'])
+        # Shift Position to prevent target leakage (Position is known at end of lap)
+        df['PrevPosition'] = driver_group['Position'].shift(1)
         df['StartingPosition'] = driver_group['Position'].transform('first')
-        df['PositionChange'] = df['StartingPosition'] - df['Position']
+        df['PositionChange'] = df['StartingPosition'] - df['PrevPosition']
     else:
         df['PositionChange'] = np.nan
         
@@ -86,6 +88,33 @@ def generate_track_features(df: pd.DataFrame) -> pd.DataFrame:
     
     return df
 
+def generate_historical_features(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Shifts telemetry and sector features by 1 lap to prevent target leakage.
+    These features represent the performance of the *previous* lap.
+    """
+    logger.info("Generating Historical Telemetry/Sector Features...")
+    
+    cols_to_shift = [
+        'Sector1Time', 'Sector2Time', 'Sector3Time',
+        'SpeedI1', 'SpeedI2', 'SpeedFL', 'SpeedST', 
+        'AvgSpeed', 'MaxSpeed', 'MinSpeed', 'AvgThrottle', 'MaxThrottle', 
+        'BrakePercentage', 'DRSPercentage', 'AvgRPM', 'MaxRPM', 'AvgGear', 'CorneringSpeed'
+    ]
+    
+    group = df.groupby(['Year', 'EventName', 'SessionType', 'Driver'])
+    
+    for col in cols_to_shift:
+        if col in df.columns:
+            # Shift the feature and create a 'Prev' version
+            df[f'Prev{col}'] = group[col].shift(1)
+            
+            # If the column is a timedelta, convert the shifted version to seconds
+            if pd.api.types.is_timedelta64_dtype(df[f'Prev{col}']):
+                df[f'Prev{col}Seconds'] = df[f'Prev{col}'].dt.total_seconds()
+                
+    return df
+
 def run_feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
     """
     Runs the full feature engineering pipeline sequentially.
@@ -97,6 +126,7 @@ def run_feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
     df = generate_tire_features(df)
     df = generate_race_features(df)
     df = generate_track_features(df)
+    df = generate_historical_features(df)
     
     logger.info(f"Feature engineering complete. Total features: {len(df.columns)}")
     return df
