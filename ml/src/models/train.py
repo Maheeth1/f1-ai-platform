@@ -16,7 +16,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 
 from src.utils.logger import get_logger
 from src.utils.config import PROCESSED_DATA_DIR
-from src.models import registry
+from src.models import registry, explainability
 
 logger = get_logger(__name__)
 
@@ -289,6 +289,18 @@ def main():
     models, results = train_ensemble_models(X_train, X_test, y_train, y_test, args.target, cat_features=cat_cols)
     comp_path = Path(__file__).resolve().parent.parent.parent / "model_comparison.md"
     generate_model_comparison_report(results, comp_path)
+    
+    # Generate XAI Explanations using the primary CatBoost model
+    # Use a sample of the test set for global explanations to ensure it runs reasonably fast
+    logger.info("Initializing Explainable AI (SHAP) process...")
+    sample_size = min(1000, len(X_test))
+    X_sample = X_test.sample(n=sample_size, random_state=42)
+    
+    # The output directory for the explainability report will be the project root
+    project_root = Path(__file__).resolve().parent.parent.parent
+    explainability.generate_global_explanations(models['CatBoost'], X_sample, project_root)
+    explainability.generate_local_explanations(models['CatBoost'], X_sample, project_root, row_idx=0)
+    explainability.create_explainability_report(project_root)
     
     # Save the best model to the registry (Stacking Ensemble)
     best_model = models['Stacking Ensemble']
