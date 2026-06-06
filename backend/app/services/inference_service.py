@@ -10,18 +10,27 @@ from app.core.metrics import PREDICTIONS_COUNTER, PREDICTION_LATENCY
 class InferenceService:
     
     def _preprocess(self, df: pd.DataFrame, encoder, scaler, features: List[str]) -> pd.DataFrame:
+        # Extract categorical columns from ColumnTransformer if available
+        cat_cols = set()
+        if encoder and hasattr(encoder, 'transformers_'):
+            for name, trans, cols in encoder.transformers_:
+                if name == 'cat':
+                    cat_cols.update(cols)
+                    
         # 1. Fill missing features with default 0.0 or "missing"
         for col in features:
             if col not in df.columns:
-                df[col] = 0.0
+                if col in cat_cols:
+                    df[col] = "missing"
+                else:
+                    df[col] = 0.0
 
         # Subselect required features
         df = df[features].copy()
         
         # 2. Type casting for categorical columns naturally
-        # If encoder is none, we still ensure basic object types are categories for models like CatBoost/LightGBM
         for col in df.columns:
-            if df[col].dtype == 'object' or df[col].dtype.name == 'category':
+            if col in cat_cols or df[col].dtype == 'object' or df[col].dtype.name == 'category':
                 df[col] = df[col].astype(str).astype('category')
             else:
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0.0)
@@ -30,7 +39,12 @@ class InferenceService:
         if encoder:
             transformed_arr = encoder.transform(df)
             # ColumnTransformer returns an array, so we must recreate the DataFrame
-            df = pd.DataFrame(transformed_arr, columns=df.columns)
+            # Restore feature names from the encoder if possible (ColumnTransformer prefixes them)
+            try:
+                out_cols = [col.split('__')[-1] for col in encoder.get_feature_names_out()]
+                df = pd.DataFrame(transformed_arr, columns=out_cols)
+            except Exception:
+                df = pd.DataFrame(transformed_arr)
             
         # 4. Apply Scaler if available (Legacy support if separated)
         if scaler:
