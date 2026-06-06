@@ -7,6 +7,8 @@ from sklearn.model_selection import KFold, GroupKFold, TimeSeriesSplit
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.ensemble import RandomForestRegressor, StackingRegressor
 from sklearn.linear_model import Ridge
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import StandardScaler, OrdinalEncoder
 import xgboost as xgb
 import lightgbm as lgb
 import catboost as cb
@@ -253,10 +255,6 @@ def main():
     # Automatically identify categorical columns
     cat_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
     
-    # Use native categorical handling instead of one-hot encoding
-    for col in cat_cols:
-        df[col] = df[col].astype(str).fillna("missing").astype('category')
-
     # Prepare features and target
     if args.target not in df.columns:
         logger.error(f"Target '{args.target}' not found in dataset!")
@@ -264,6 +262,25 @@ def main():
         
     X = df.drop(columns=[args.target])
     y = df[args.target]
+
+    # Use scikit-learn preprocessing
+    num_cols = X.select_dtypes(include=[np.number]).columns.tolist()
+    cat_cols_filtered = [c for c in cat_cols if c in X.columns]
+    
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ('num', StandardScaler(), num_cols),
+            ('cat', OrdinalEncoder(handle_unknown='use_encoded_value', unknown_value=-1), cat_cols_filtered)
+        ]
+    )
+    
+    # Fit and transform, preserving columns
+    logger.info("Fitting unified preprocessing pipeline...")
+    X_transformed = preprocessor.fit_transform(X)
+    
+    # The new column order is num_cols + cat_cols_filtered
+    feature_names = num_cols + cat_cols_filtered
+    X = pd.DataFrame(X_transformed, columns=feature_names)
     
     # Run Leakage Validation
     validate_no_leakage(X, y)
@@ -283,25 +300,12 @@ def main():
     y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
 
     logger.info(f"Training on {X_train.shape[0]} rows, testing on {X_test.shape[0]} rows.")
-    
-    if args.target in cat_cols:
-        cat_cols.remove(args.target)
 
-    models, results = train_ensemble_models(X_train, X_test, y_train, y_test, args.target, cat_features=cat_cols)
+    models, results = train_ensemble_models(X_train, X_test, y_train, y_test, args.target, cat_features=cat_cols_filtered)
     comp_path = Path(__file__).resolve().parent.parent.parent / "model_comparison.md"
     generate_model_comparison_report(results, comp_path)
     
-    # Generate XAI Explanations using the primary CatBoost model
-    # Use a sample of the test set for global explanations to ensure it runs reasonably fast
-    logger.info("Initializing Explainable AI (SHAP) process...")
-    sample_size = min(1000, len(X_test))
-    X_sample = X_test.sample(n=sample_size, random_state=42)
-    
-    # The output directory for the explainability report will be the project root
-    project_root = Path(__file__).resolve().parent.parent.parent
-    explainability.generate_global_explanations(models['CatBoost'], X_sample, project_root)
-    explainability.generate_local_explanations(models['CatBoost'], X_sample, project_root, row_idx=0)
-    explainability.create_explainability_report(project_root)
+    # Removed SHAP generation here. Moved to explain_production.py to speed up CI/CD pipeline.
     
     # Save the best model to the registry (Stacking Ensemble)
     best_model = models['Stacking Ensemble']
@@ -316,7 +320,8 @@ def main():
         candidate_metrics=best_metrics,
         feature_list=list(X.columns),
         target_name=args.target,
-        model_type="StackingEnsemble"
+        model_type="StackingEnsemble",
+        encoder=preprocessor
     )
 
 if __name__ == "__main__":

@@ -48,12 +48,18 @@ def make_predictions(input_data, target_name='LapTimeSeconds', version='latest')
     # Subset and reorder to match training exactly
     X_inference = df[features]
     
-    # Apply category types if categorical native handling was used
-    cat_cols = X_inference.select_dtypes(include=['object']).columns
-    for col in cat_cols:
-        X_inference[col] = X_inference[col].astype(str).astype('category')
+    # 3. Apply ColumnTransformer (loaded as encoder)
+    encoder = artifacts.get('encoder')
+    if encoder:
+        logger.info("Applying ColumnTransformer preprocessing...")
+        try:
+            X_transformed = encoder.transform(X_inference)
+            X_inference = pd.DataFrame(X_transformed, columns=features)
+        except Exception as e:
+            logger.error(f"Error during preprocessing transform: {e}")
+            raise e
         
-    # 3. Predict
+    # 4. Predict
     logger.info("Running prediction...")
     predictions = model.predict(X_inference)
     

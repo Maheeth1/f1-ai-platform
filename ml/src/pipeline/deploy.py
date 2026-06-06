@@ -9,7 +9,7 @@ import joblib
 
 logger = get_logger(__name__)
 
-def evaluate_and_promote_candidate(candidate_model, X_test, y_test, candidate_metrics, feature_list, target_name, model_type="StackingEnsemble"):
+def evaluate_and_promote_candidate(candidate_model, X_test, y_test, candidate_metrics, feature_list, target_name, model_type="StackingEnsemble", encoder=None, scaler=None):
     """
     Evaluates the newly trained candidate model against the current active production model.
     If the candidate is better (lower RMSE), it promotes it to production.
@@ -73,6 +73,8 @@ def evaluate_and_promote_candidate(candidate_model, X_test, y_test, candidate_me
             target_name=target_name,
             metrics=candidate_metrics,
             feature_list=feature_list,
+            encoder=encoder,
+            scaler=scaler,
             model_type=model_type
         )
         logger.info(f"Model {version} successfully deployed to production.")

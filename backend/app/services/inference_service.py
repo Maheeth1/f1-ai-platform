@@ -26,11 +26,13 @@ class InferenceService:
             else:
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0.0)
 
-        # 3. Apply Encoder if available
+        # 3. Apply Encoder if available (Now a ColumnTransformer)
         if encoder:
-            df = encoder.transform(df)
+            transformed_arr = encoder.transform(df)
+            # ColumnTransformer returns an array, so we must recreate the DataFrame
+            df = pd.DataFrame(transformed_arr, columns=df.columns)
             
-        # 4. Apply Scaler if available
+        # 4. Apply Scaler if available (Legacy support if separated)
         if scaler:
             df_scaled = scaler.transform(df)
             df = pd.DataFrame(df_scaled, columns=df.columns)
