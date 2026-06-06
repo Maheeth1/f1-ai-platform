@@ -12,3 +12,5 @@ python-multipart
 prometheus-client
 prometheus-fastapi-instrumentator
 catboost
+lightgbm
+xgboost
