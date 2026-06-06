@@ -1,22 +1,158 @@
+import json
+import os
 import joblib
+from datetime import datetime
+from typing import Dict, Any, Optional
 from app.core.logger import logger
 
+REGISTRY_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "models", "registry.json")
+
 class ModelRegistry:
-    _model = None
+    # Keeps track of models loaded in memory for fast inference
+    # Format: {"laptime": model_object, "gridposition": model_object, ...}
+    _active_models: Dict[str, Any] = {}
+    
+    @classmethod
+    def _get_registry_data(cls) -> Dict[str, Any]:
+        if not os.path.exists(REGISTRY_PATH):
+            return {
+                "laptime": {"active_version": None, "versions": []},
+                "gridposition": {"active_version": None, "versions": []},
+                "simulation": {"active_version": None, "versions": []}
+            }
+        with open(REGISTRY_PATH, 'r') as f:
+            return json.load(f)
 
     @classmethod
-    def load_model(cls, model_path: str):
+    def _save_registry_data(cls, data: Dict[str, Any]):
+        os.makedirs(os.path.dirname(REGISTRY_PATH), exist_ok=True)
+        with open(REGISTRY_PATH, 'w') as f:
+            json.dump(data, f, indent=2)
+
+    @classmethod
+    def register_model(cls, target: str, version: str, path: str, metrics: Dict[str, Any] = None, metadata: Dict[str, Any] = None):
+        """Registers a new model version for a given target."""
+        registry = cls._get_registry_data()
+        
+        if target not in registry:
+            registry[target] = {"active_version": None, "versions": []}
+            
+        # Check if version already exists
+        for v in registry[target]["versions"]:
+            if v["version"] == version:
+                raise ValueError(f"Version {version} already exists for target {target}")
+                
+        new_version = {
+            "version": version,
+            "path": path,
+            "registered_at": datetime.utcnow().isoformat(),
+            "metrics": metrics or {},
+            "metadata": metadata or {}
+        }
+        
+        registry[target]["versions"].append(new_version)
+        cls._save_registry_data(registry)
+        logger.info(f"Successfully registered model {version} for {target}")
+
+    @classmethod
+    def load_model(cls, target: str, version: Optional[str] = None):
+        """Loads a model into memory. If version is None, loads the active version."""
+        registry = cls._get_registry_data()
+        
+        if target not in registry:
+            raise ValueError(f"Target {target} not found in registry")
+            
+        target_info = registry[target]
+        version_to_load = version or target_info["active_version"]
+        
+        if not version_to_load:
+            logger.warning(f"No active version found for {target} to load")
+            return None
+            
+        # Find the version info
+        version_info = next((v for v in target_info["versions"] if v["version"] == version_to_load), None)
+        if not version_info:
+            raise ValueError(f"Version {version_to_load} not found for target {target}")
+            
+        path = version_info["path"]
+        if not os.path.exists(path):
+            logger.error(f"Model file not found at {path}")
+            raise FileNotFoundError(f"Model file not found at {path}")
+            
         try:
-            cls._model = joblib.load(model_path)
-            logger.info("SUCCESS: Model loaded into registry.")
+            model = joblib.load(path)
+            cls._active_models[target] = model
+            logger.info(f"SUCCESS: Model {version_to_load} for {target} loaded into memory.")
         except Exception as e:
-            logger.error(f"ERROR: Failed to load model: {e}")
+            logger.error(f"ERROR: Failed to load model from {path}: {e}")
             raise e
 
     @classmethod
-    def get_model(cls):
-        return cls._model
+    def rollback_model(cls, target: str):
+        """Rolls back the active model to the previous version, if available."""
+        registry = cls._get_registry_data()
+        if target not in registry:
+            raise ValueError(f"Target {target} not found in registry")
+            
+        target_info = registry[target]
+        versions = target_info["versions"]
+        
+        if len(versions) < 2:
+            raise ValueError(f"Not enough versions to rollback for target {target}")
+            
+        # Assuming versions are appended in chronological order
+        current_active = target_info["active_version"]
+        
+        # Find index of current active
+        idx = -1
+        for i, v in enumerate(versions):
+            if v["version"] == current_active:
+                idx = i
+                break
+                
+        if idx <= 0:
+            raise ValueError(f"Cannot rollback: Current active version is the oldest or not found.")
+            
+        previous_version = versions[idx - 1]["version"]
+        cls.switch_active_model(target, previous_version)
+        logger.info(f"Rolled back {target} to version {previous_version}")
+        return previous_version
 
     @classmethod
-    def is_loaded(cls) -> bool:
-        return cls._model is not None
+    def switch_active_model(cls, target: str, version: str):
+        """Switches the active model for a target and loads it into memory."""
+        registry = cls._get_registry_data()
+        if target not in registry:
+            raise ValueError(f"Target {target} not found in registry")
+            
+        # Validate version exists
+        version_exists = any(v["version"] == version for v in registry[target]["versions"])
+        if not version_exists:
+            raise ValueError(f"Version {version} not found for target {target}")
+            
+        registry[target]["active_version"] = version
+        cls._save_registry_data(registry)
+        
+        # Attempt to load it into memory
+        cls.load_model(target, version)
+
+    @classmethod
+    def get_active_model(cls, target: str):
+        """Returns the in-memory active model for a target."""
+        return cls._active_models.get(target)
+
+    @classmethod
+    def get_active_version_info(cls, target: str) -> Optional[Dict[str, Any]]:
+        """Returns metadata for the active version of a target."""
+        registry = cls._get_registry_data()
+        if target not in registry:
+            return None
+        active_version = registry[target]["active_version"]
+        if not active_version:
+            return None
+        return next((v for v in registry[target]["versions"] if v["version"] == active_version), None)
+
+    @classmethod
+    def get_registry_state(cls) -> Dict[str, Any]:
+        """Returns the full registry state."""
+        return cls._get_registry_data()
