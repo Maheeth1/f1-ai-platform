@@ -3,7 +3,6 @@ from pathlib import Path
 from src.utils.logger import get_logger
 from src.models import registry
 from src.models.train import evaluate_model
-from src.models.wrappers import AutoCatBoostRegressor
 import os
 import joblib
 
