@@ -3,6 +3,7 @@ import json
 from typing import Any, Optional
 from app.core.config import settings
 from app.core.logger import logger
+from app.core.metrics import CACHE_EVENTS
 
 class CacheService:
     _client = None
@@ -12,7 +13,6 @@ class CacheService:
         if cls._client is None:
             try:
                 cls._client = redis.Redis.from_url(settings.redis_url, decode_responses=True)
-                # Ping to check connection
                 cls._client.ping()
                 logger.info(f"Connected to Redis at {settings.redis_url}")
             except Exception as e:
@@ -51,6 +51,7 @@ class CacheService:
 
     @classmethod
     def increment_hit(cls):
+        CACHE_EVENTS.labels(type="hit").inc()
         client = cls.get_client()
         if client:
             try:
@@ -60,6 +61,7 @@ class CacheService:
 
     @classmethod
     def increment_miss(cls):
+        CACHE_EVENTS.labels(type="miss").inc()
         client = cls.get_client()
         if client:
             try:

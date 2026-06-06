@@ -9,3 +9,5 @@ redis
 python-jose[cryptography]
 passlib[bcrypt]
 python-multipart
+prometheus-client
+prometheus-fastapi-instrumentator

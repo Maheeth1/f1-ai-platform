@@ -1,0 +1,54 @@
+{
+  "title": "F1 AI Platform",
+  "uid": "f1-main",
+  "panels": [
+    {
+      "title": "Prediction Requests",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "rate(f1_predictions_total[1m])",
+          "legendFormat": "{{target}} ({{version}}) - {{status}}"
+        }
+      ]
+    },
+    {
+      "title": "Inference Latency (P95)",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(f1_prediction_latency_seconds_bucket[1m])) by (le, target))",
+          "legendFormat": "{{target}}"
+        }
+      ]
+    },
+    {
+      "title": "Cache Performance",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "rate(f1_cache_events_total[1m])",
+          "legendFormat": "{{type}}"
+        }
+      ]
+    },
+    {
+      "title": "HTTP Request Rate",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "rate(http_requests_total[1m])",
+          "legendFormat": "{{method}} {{handler}} ({{status}})"
+        }
+      ]
+    }
+  ]
+}

@@ -5,6 +5,7 @@ from app.schemas.prediction import PredictionRequest, PredictionResponse, BatchP
 from app.services.model_registry import ModelRegistry
 from app.services.confidence import ConfidenceEstimator
 from app.core.logger import logger
+from app.core.metrics import PREDICTIONS_COUNTER, PREDICTION_LATENCY
 
 class InferenceService:
     
@@ -49,23 +50,29 @@ class InferenceService:
         features = model_payload.get("features", [])
         version = model_payload.get("version", "unknown")
         
-        input_df = pd.DataFrame([data.model_dump()])
-        processed_df = self._preprocess(input_df, encoder, scaler, features)
-        
-        prediction = float(model.predict(processed_df)[0])
-        
-        # Retrieve metadata for confidence calculation
-        registry_state = ModelRegistry.get_registry_state()
-        target_info = registry_state.get(target, {})
-        metadata = {}
-        for v in target_info.get("versions", []):
-            if v["version"] == version:
-                metadata = v
-                break
+        try:
+            with PREDICTION_LATENCY.labels(target=target).time():
+                input_df = pd.DataFrame([data.model_dump()])
+                processed_df = self._preprocess(input_df, encoder, scaler, features)
                 
-        lower, upper, conf, report = ConfidenceEstimator.estimate_confidence(
-            model, processed_df, prediction, metadata
-        )
+                prediction = float(model.predict(processed_df)[0])
+                
+                # Retrieve metadata for confidence calculation
+                registry_state = ModelRegistry.get_registry_state()
+                target_info = registry_state.get(target, {})
+                metadata = {}
+                for v in target_info.get("versions", []):
+                    if v["version"] == version:
+                        metadata = v
+                        break
+                        
+                lower, upper, conf, report = ConfidenceEstimator.estimate_confidence(
+                    model, processed_df, prediction, metadata
+                )
+            PREDICTIONS_COUNTER.labels(target=target, version=version, status="success").inc()
+        except Exception as e:
+            PREDICTIONS_COUNTER.labels(target=target, version=version, status="error").inc()
+            raise e
         
         latency_ms = round((time.time() - start_time) * 1000, 2)
         
@@ -92,40 +99,46 @@ class InferenceService:
         features = model_payload.get("features", [])
         version = model_payload.get("version", "unknown")
         
-        input_df = pd.DataFrame([req.model_dump() for req in data.requests])
-        processed_df = self._preprocess(input_df, encoder, scaler, features)
-        
-        predictions = model.predict(processed_df)
-        
-        # Retrieve metadata for confidence calculation
-        registry_state = ModelRegistry.get_registry_state()
-        target_info = registry_state.get(target, {})
-        metadata = {}
-        for v in target_info.get("versions", []):
-            if v["version"] == version:
-                metadata = v
-                break
+        try:
+            with PREDICTION_LATENCY.labels(target=target).time():
+                input_df = pd.DataFrame([req.model_dump() for req in data.requests])
+                processed_df = self._preprocess(input_df, encoder, scaler, features)
                 
-        responses = []
-        for i, pred in enumerate(predictions):
-            pred_val = float(pred)
-            single_processed_df = processed_df.iloc[[i]]
-            
-            lower, upper, conf, report = ConfidenceEstimator.estimate_confidence(
-                model, single_processed_df, pred_val, metadata
-            )
-            
-            # Latency for batch item is averaged
-            latency_ms = round(((time.time() - start_time) * 1000) / len(predictions), 2)
-            
-            responses.append(PredictionResponse(
-                prediction=round(pred_val, 4),
-                lower_bound=lower,
-                upper_bound=upper,
-                confidence=conf,
-                confidence_report=report,
-                model_version=version,
-                latency_ms=latency_ms
-            ))
+                predictions = model.predict(processed_df)
+                
+                # Retrieve metadata for confidence calculation
+                registry_state = ModelRegistry.get_registry_state()
+                target_info = registry_state.get(target, {})
+                metadata = {}
+                for v in target_info.get("versions", []):
+                    if v["version"] == version:
+                        metadata = v
+                        break
+                        
+                responses = []
+                for i, pred in enumerate(predictions):
+                    pred_val = float(pred)
+                    single_processed_df = processed_df.iloc[[i]]
+                    
+                    lower, upper, conf, report = ConfidenceEstimator.estimate_confidence(
+                        model, single_processed_df, pred_val, metadata
+                    )
+                    
+                    # Latency for batch item is averaged
+                    latency_ms = round(((time.time() - start_time) * 1000) / len(predictions), 2)
+                    
+                    responses.append(PredictionResponse(
+                        prediction=round(pred_val, 4),
+                        lower_bound=lower,
+                        upper_bound=upper,
+                        confidence=conf,
+                        confidence_report=report,
+                        model_version=version,
+                        latency_ms=latency_ms
+                    ))
+            PREDICTIONS_COUNTER.labels(target=target, version=version, status="success").inc(len(predictions))
+        except Exception as e:
+            PREDICTIONS_COUNTER.labels(target=target, version=version, status="error").inc(len(data.requests))
+            raise e
             
         return BatchPredictionResponse(responses=responses)

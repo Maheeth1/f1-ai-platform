@@ -9,6 +9,7 @@ from app.services.huggingface_service import HuggingFaceService
 from app.services.model_registry import ModelRegistry
 from app.api.routes import health, models, prediction, metadata, metrics, auth
 from app.api.middleware.security import SecurityHeadersMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -78,6 +79,9 @@ app.add_middleware(
     allow_methods=settings.cors_methods,
     allow_headers=settings.cors_headers,
 )
+
+# Prometheus Monitoring
+Instrumentator().instrument(app).expose(app)
 
 # Include routers
 app.include_router(health.router, tags=["Health"])
