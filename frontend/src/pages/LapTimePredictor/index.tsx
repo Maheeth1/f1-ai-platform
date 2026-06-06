@@ -31,7 +31,7 @@ export default function LapTimePredictor() {
   const [lapNumber, setLapNumber] = useState<number>(20);
   const [tyreLife, setTyreLife] = useState<number>(10);
   
-  const predictMutation = usePrediction();
+  const predictMutation = usePrediction('LapTimeSeconds');
 
   const handlePredict = (e: React.FormEvent) => {
     e.preventDefault();

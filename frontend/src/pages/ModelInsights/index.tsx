@@ -12,7 +12,7 @@ const mockShapData = [
 ].sort((a, b) => b.importance - a.importance);
 
 export default function ModelInsights() {
-  const { data: modelInfo, isLoading } = useModelInfo();
+  const { data: modelInfo, isLoading } = useModelInfo('LapTimeSeconds');
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">

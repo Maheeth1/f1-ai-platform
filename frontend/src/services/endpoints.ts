@@ -6,16 +6,16 @@ export const endpoints = {
     const { data } = await api.get('/health');
     return data;
   },
-  modelInfo: async () => {
-    const { data } = await api.get('/model-info');
+  modelInfo: async (target: string) => {
+    const { data } = await api.get(`/models/info/${target}`);
     return data;
   },
   sampleRequest: async () => {
     const { data } = await api.get('/sample-request');
     return data;
   },
-  predict: async (payload: PredictionRequest) => {
-    const { data } = await api.post<PredictionResponse>('/predict', payload);
+  predict: async (target: string, payload: PredictionRequest) => {
+    const { data } = await api.post<PredictionResponse>(`/${target}/predict`, payload);
     return data;
   },
   getModels: async () => {

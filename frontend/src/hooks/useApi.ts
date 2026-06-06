@@ -10,10 +10,10 @@ export const useHealthCheck = () => {
   });
 };
 
-export const useModelInfo = (enabled: boolean = true) => {
+export const useModelInfo = (target: string, enabled: boolean = true) => {
   return useQuery({
-    queryKey: ['modelInfo'],
-    queryFn: endpoints.modelInfo,
+    queryKey: ['modelInfo', target],
+    queryFn: () => endpoints.modelInfo(target),
     enabled,
   });
 };
@@ -26,9 +26,9 @@ export const useSampleRequest = () => {
   });
 };
 
-export const usePrediction = () => {
+export const usePrediction = (target: string) => {
   return useMutation({
-    mutationFn: (payload: PredictionRequest) => endpoints.predict(payload),
+    mutationFn: (payload: PredictionRequest) => endpoints.predict(target, payload),
   });
 };
 
