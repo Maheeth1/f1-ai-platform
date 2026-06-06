@@ -12,7 +12,10 @@ class BatchPredictionRequest(BaseModel):
 
 class PredictionResponse(BaseModel):
     prediction: float
+    lower_bound: float
+    upper_bound: float
     confidence: float
+    confidence_report: dict
     model_version: str
     latency_ms: float
 

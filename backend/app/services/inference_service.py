@@ -3,6 +3,7 @@ import pandas as pd
 from typing import List, Dict, Any
 from app.schemas.prediction import PredictionRequest, PredictionResponse, BatchPredictionRequest, BatchPredictionResponse
 from app.services.model_registry import ModelRegistry
+from app.services.confidence import ConfidenceEstimator
 from app.core.logger import logger
 
 class InferenceService:
@@ -35,26 +36,6 @@ class InferenceService:
             
         return df
 
-    def _calculate_confidence(self, prediction: float, target: str) -> float:
-        # Fetch metrics from registry to calculate confidence
-        registry_state = ModelRegistry.get_registry_state()
-        target_info = registry_state.get(target, {})
-        active_version = target_info.get("active_version")
-        rmse = 0.5 # Default fallback
-        if active_version:
-            for v in target_info.get("versions", []):
-                if v["version"] == active_version:
-                    rmse = v.get("metrics", {}).get("RMSE", 0.5)
-                    break
-        
-        # Pseudo-confidence formula based on variance relative to prediction magnitude
-        # max(0, 100 - (rmse / abs(prediction) * 100))
-        if prediction == 0:
-            return 0.0
-            
-        confidence = max(0.0, 100.0 - (rmse / abs(prediction)) * 100.0)
-        return round(min(100.0, confidence), 2)
-
     def predict(self, target: str, data: PredictionRequest) -> PredictionResponse:
         start_time = time.time()
         
@@ -72,13 +53,28 @@ class InferenceService:
         processed_df = self._preprocess(input_df, encoder, scaler, features)
         
         prediction = float(model.predict(processed_df)[0])
-        confidence = self._calculate_confidence(prediction, target)
+        
+        # Retrieve metadata for confidence calculation
+        registry_state = ModelRegistry.get_registry_state()
+        target_info = registry_state.get(target, {})
+        metadata = {}
+        for v in target_info.get("versions", []):
+            if v["version"] == version:
+                metadata = v
+                break
+                
+        lower, upper, conf, report = ConfidenceEstimator.estimate_confidence(
+            model, processed_df, prediction, metadata
+        )
         
         latency_ms = round((time.time() - start_time) * 1000, 2)
         
         return PredictionResponse(
             prediction=round(prediction, 4),
-            confidence=confidence,
+            lower_bound=lower,
+            upper_bound=upper,
+            confidence=conf,
+            confidence_report=report,
             model_version=version,
             latency_ms=latency_ms
         )
@@ -101,16 +97,33 @@ class InferenceService:
         
         predictions = model.predict(processed_df)
         
+        # Retrieve metadata for confidence calculation
+        registry_state = ModelRegistry.get_registry_state()
+        target_info = registry_state.get(target, {})
+        metadata = {}
+        for v in target_info.get("versions", []):
+            if v["version"] == version:
+                metadata = v
+                break
+                
         responses = []
-        for pred in predictions:
+        for i, pred in enumerate(predictions):
             pred_val = float(pred)
-            confidence = self._calculate_confidence(pred_val, target)
+            single_processed_df = processed_df.iloc[[i]]
+            
+            lower, upper, conf, report = ConfidenceEstimator.estimate_confidence(
+                model, single_processed_df, pred_val, metadata
+            )
+            
             # Latency for batch item is averaged
             latency_ms = round(((time.time() - start_time) * 1000) / len(predictions), 2)
             
             responses.append(PredictionResponse(
                 prediction=round(pred_val, 4),
-                confidence=confidence,
+                lower_bound=lower,
+                upper_bound=upper,
+                confidence=conf,
+                confidence_report=report,
                 model_version=version,
                 latency_ms=latency_ms
             ))
