@@ -8,6 +8,7 @@ const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const LapTimePredictor = React.lazy(() => import('./pages/LapTimePredictor'));
 const GridPredictor = React.lazy(() => import('./pages/GridPredictor'));
 const RaceSimulation = React.lazy(() => import('./pages/RaceSimulation'));
+const CircuitIntelligence = React.lazy(() => import('./pages/CircuitIntelligence'));
 const DriverAnalysis = React.lazy(() => import('./pages/DriverAnalysis'));
 const ModelInsights = React.lazy(() => import('./pages/ModelInsights'));
 const Settings = React.lazy(() => import('./pages/Settings'));
@@ -34,6 +35,7 @@ function App() {
               <Route path="/lap-time" element={<LapTimePredictor />} />
               <Route path="/grid" element={<GridPredictor />} />
               <Route path="/simulation" element={<RaceSimulation />} />
+              <Route path="/circuits" element={<CircuitIntelligence />} />
               <Route path="/drivers" element={<DriverAnalysis />} />
               <Route path="/insights" element={<ModelInsights />} />
               <Route path="/settings" element={<Settings />} />

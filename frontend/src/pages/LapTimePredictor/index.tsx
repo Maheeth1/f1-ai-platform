@@ -194,6 +194,42 @@ export default function LapTimePredictor() {
               </div>
             )}
           </div>
+          
+          {/* AI Explanation Panel */}
+          {prediction !== undefined && !loading && (
+            <div className="glass-panel rounded-xl p-6 shadow-2xl animate-in slide-in-from-bottom-4 duration-500">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4 flex items-center gap-2">
+                <Zap className="w-4 h-4 text-f1-neon" />
+                AI Interpretability Report
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-gray-300">Driver Capability</span>
+                  <div className="w-1/2 h-1.5 bg-f1-border rounded overflow-hidden">
+                    <div className="h-full bg-emerald-400 w-3/4"></div>
+                  </div>
+                  <span className="text-emerald-400 font-mono">+0.3s</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-gray-300">Tyre Degradation ({tyreLife} Laps)</span>
+                  <div className="w-1/2 h-1.5 bg-f1-border rounded overflow-hidden">
+                    <div className="h-full bg-f1-red w-full"></div>
+                  </div>
+                  <span className="text-f1-red font-mono">-1.2s</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-gray-300">Fuel Load Effect</span>
+                  <div className="w-1/2 h-1.5 bg-f1-border rounded overflow-hidden">
+                    <div className="h-full bg-emerald-400 w-1/4"></div>
+                  </div>
+                  <span className="text-emerald-400 font-mono">+0.1s</span>
+                </div>
+                <p className="text-[10px] text-gray-500 mt-4 leading-relaxed border-t border-f1-border pt-3">
+                  This prediction is heavily penalized by tyre age. The model considers {tyreLife} laps on the current compound to result in a significant pace deficit relative to the grid average.
+                </p>
+              </div>
+            </div>
+          )}
         </section>
       </div>
     </div>

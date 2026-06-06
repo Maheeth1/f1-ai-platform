@@ -9,16 +9,20 @@ import {
   Users, 
   Cpu, 
   Settings as SettingsIcon,
+  Map,
   Menu,
-  X
+  X,
+  Search
 } from 'lucide-react';
 import { useHealthCheck } from '../../hooks/useApi';
+import { CommandPalette } from '../ui/CommandPalette';
 
 const NAV_ITEMS = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/lap-time', label: 'Lap Time', icon: Timer },
   { path: '/grid', label: 'Grid Position', icon: Grid },
   { path: '/simulation', label: 'Race Sim', icon: PlaySquare },
+  { path: '/circuits', label: 'Circuits', icon: Map },
   { path: '/drivers', label: 'Drivers', icon: Users },
   { path: '/insights', label: 'Insights', icon: Cpu },
   { path: '/settings', label: 'Settings', icon: SettingsIcon },
@@ -37,6 +41,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-f1-dark text-white carbon-grid flex flex-col md:flex-row font-sans">
+      <CommandPalette />
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-4 border-b border-f1-border bg-f1-dark/80 backdrop-blur z-50">
         <div className="flex items-center gap-2">
@@ -59,6 +64,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <h1 className="text-lg font-bold tracking-wider leading-tight">AI PLATFORM</h1>
             <p className="text-[10px] text-f1-gray uppercase tracking-widest">Race Engine</p>
           </div>
+        </div>
+
+        <div className="p-4 border-b border-f1-border hidden md:block">
+          <button 
+            className="w-full flex items-center justify-between px-3 py-2 bg-f1-dark rounded-lg border border-f1-border text-gray-400 hover:text-white hover:border-f1-gray transition-colors text-sm"
+            onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
+          >
+            <span className="flex items-center gap-2"><Search className="w-4 h-4" /> Search</span>
+            <kbd className="hidden sm:inline-block font-mono text-[10px] bg-f1-border px-1.5 py-0.5 rounded text-gray-500">⌘K</kbd>
+          </button>
         </div>
 
         <div className="flex-1 py-6 flex flex-col gap-2 px-4 overflow-y-auto">
