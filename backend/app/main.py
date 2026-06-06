@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from app.core.config import settings
+from app.core.config import settings, MODEL_DIR
 from app.core.logger import logger
 from app.services.huggingface_service import HuggingFaceService
 from app.services.model_registry import ModelRegistry
@@ -15,6 +15,8 @@ from prometheus_fastapi_instrumentator import Instrumentator
 async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting up F1 AI Platform API...")
+    logger.info(f"Model directory resolved to: {MODEL_DIR}")
+    MODEL_DIR.mkdir(parents=True, exist_ok=True)
     try:
         # Sync latest models from Hugging Face on startup for known targets
         targets_to_sync = ["LapTimeSeconds", "Position"]
@@ -30,9 +32,8 @@ async def lifespan(app: FastAPI):
                     # Check if registered AND the model file physically exists
                     already_registered = any(v["version"] == latest_version for v in target_info.get("versions", []))
                     
-                    backend_models_dir = os.path.join(os.path.dirname(__file__), "..", "models")
-                    expected_model_path = os.path.abspath(os.path.join(backend_models_dir, target, latest_version, "model.pkl"))
-                    model_exists_physically = os.path.exists(expected_model_path)
+                    expected_model_path = MODEL_DIR / target / latest_version / "model.pkl"
+                    model_exists_physically = expected_model_path.exists()
                     
                     if not already_registered or not model_exists_physically:
                         logger.info(f"Syncing latest {target} model {latest_version} from Hugging Face...")
@@ -40,7 +41,6 @@ async def lifespan(app: FastAPI):
                         ModelRegistry.register_model(
                             target=target,
                             version=latest_version,
-                            path=hf_data["path"],
                             metrics=hf_data["metrics"],
                             metadata=hf_data["metadata"]
                         )

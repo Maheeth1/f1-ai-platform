@@ -1,5 +1,9 @@
 import os
+from pathlib import Path
 from pydantic import BaseModel
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+MODEL_DIR = BASE_DIR / "models"
 
 class Settings(BaseModel):
     app_name: str = "F1 AI Platform API"

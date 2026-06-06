@@ -16,7 +16,6 @@
     "versions": [
       {
         "version": "v20260606_121209",
-        "path": "C:\\Users\\satish\\f1-ai-platform\\backend\\models\\LapTimeSeconds\\v20260606_121209\\model.pkl",
         "registered_at": "2026-06-06T07:13:08.275801",
         "metrics": {
           "MAE": 9.732506747760338,
@@ -43,7 +42,6 @@
     "versions": [
       {
         "version": "v20260606_124221",
-        "path": "C:\\Users\\satish\\f1-ai-platform\\backend\\models\\Position\\v20260606_124221\\model.pkl",
         "registered_at": "2026-06-06T07:13:25.142700",
         "metrics": {
           "MAE": 0.287155016109337,

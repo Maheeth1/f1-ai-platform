@@ -4,8 +4,9 @@ import joblib
 from datetime import datetime
 from typing import Dict, Any, Optional
 from app.core.logger import logger
+from app.core.config import MODEL_DIR
 
-REGISTRY_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "models", "registry.json")
+REGISTRY_PATH = MODEL_DIR / "registry.json"
 
 class ModelRegistry:
     # Keeps track of models loaded in memory for fast inference
@@ -14,7 +15,7 @@ class ModelRegistry:
     
     @classmethod
     def _get_registry_data(cls) -> Dict[str, Any]:
-        if not os.path.exists(REGISTRY_PATH):
+        if not REGISTRY_PATH.exists():
             return {
                 "LapTimeSeconds": {"active_version": None, "versions": []},
                 "Position": {"active_version": None, "versions": []}
@@ -24,12 +25,12 @@ class ModelRegistry:
 
     @classmethod
     def _save_registry_data(cls, data: Dict[str, Any]):
-        os.makedirs(os.path.dirname(REGISTRY_PATH), exist_ok=True)
+        REGISTRY_PATH.parent.mkdir(parents=True, exist_ok=True)
         with open(REGISTRY_PATH, 'w') as f:
             json.dump(data, f, indent=2)
 
     @classmethod
-    def register_model(cls, target: str, version: str, path: str, metrics: Dict[str, Any] = None, metadata: Dict[str, Any] = None):
+    def register_model(cls, target: str, version: str, metrics: Dict[str, Any] = None, metadata: Dict[str, Any] = None):
         """Registers a new model version for a given target."""
         registry = cls._get_registry_data()
         
@@ -39,14 +40,10 @@ class ModelRegistry:
         # Check if version already exists
         for i, v in enumerate(registry[target]["versions"]):
             if v["version"] == version:
-                # Update path if it exists but we downloaded it anyway
-                registry[target]["versions"][i]["path"] = path
-                cls._save_registry_data(registry)
-                logger.info(f"Model {version} for {target} was already registered. Updated path.")
+                logger.info(f"Model {version} for {target} was already registered.")
                 return
         new_version = {
             "version": version,
-            "path": path,
             "registered_at": datetime.utcnow().isoformat(),
             "metrics": metrics or {},
             "metadata": metadata or {}
@@ -76,32 +73,32 @@ class ModelRegistry:
         if not version_info:
             raise ValueError(f"Version {version_to_load} not found for target {target}")
             
-        # Dynamically reconstruct the local path, ignoring whatever is saved in the registry
-        # This prevents absolute Windows paths from crashing Linux servers (Render cache issue)
-        backend_models_dir = os.path.join(os.path.dirname(__file__), "..", "..", "models")
-        path = os.path.abspath(os.path.join(backend_models_dir, target, version_to_load, "model.pkl"))
-        target_dir = os.path.dirname(path)
+        # Dynamically reconstruct the local path
+        # This prevents absolute Windows paths from crashing Linux servers
+        target_dir = MODEL_DIR / target / version_to_load
+        path = target_dir / "model.pkl"
         
-        if not os.path.exists(path):
+        if not path.exists():
             logger.error(f"Model file not found at {path}")
             raise FileNotFoundError(f"Model file not found at {path}")
             
         try:
+            logger.info(f"Loading model from: {path}")
             model = joblib.load(path)
             
             encoder = None
-            encoder_path = os.path.join(target_dir, "encoder.pkl")
-            if os.path.exists(encoder_path):
+            encoder_path = target_dir / "encoder.pkl"
+            if encoder_path.exists():
                 encoder = joblib.load(encoder_path)
                 
             scaler = None
-            scaler_path = os.path.join(target_dir, "scaler.pkl")
-            if os.path.exists(scaler_path):
+            scaler_path = target_dir / "scaler.pkl"
+            if scaler_path.exists():
                 scaler = joblib.load(scaler_path)
                 
             features = []
-            features_path = os.path.join(target_dir, "feature_list.json")
-            if os.path.exists(features_path):
+            features_path = target_dir / "feature_list.json"
+            if features_path.exists():
                 with open(features_path, "r", encoding='utf-8') as f:
                     import json
                     features = json.load(f).get("features", [])

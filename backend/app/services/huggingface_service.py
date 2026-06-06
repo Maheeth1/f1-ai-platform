@@ -3,7 +3,7 @@ import json
 from typing import List, Optional, Dict, Any
 from huggingface_hub import HfApi, hf_hub_download
 from huggingface_hub.utils import EntryNotFoundError
-from app.core.config import settings
+from app.core.config import settings, MODEL_DIR
 from app.core.logger import logger
 
 class HuggingFaceService:
@@ -51,8 +51,8 @@ class HuggingFaceService:
         logger.info(f"Downloading {target} version {version} from {settings.model_repo_id}")
         
         # Local target directory
-        local_dir = os.path.join(os.path.dirname(__file__), "..", "..", "models", target, version)
-        os.makedirs(local_dir, exist_ok=True)
+        target_dir = MODEL_DIR / target / version
+        target_dir.mkdir(parents=True, exist_ok=True)
         
         files_to_download = ["model.pkl", "metadata.json", "feature_list.json", "encoder.pkl", "scaler.pkl"]
         
@@ -65,7 +65,7 @@ class HuggingFaceService:
                     repo_id=settings.model_repo_id,
                     filename=repo_path,
                     token=settings.hf_token,
-                    local_dir=os.path.join(os.path.dirname(__file__), "..", "..", "models")
+                    local_dir=str(MODEL_DIR)
                     # Note: hf_hub_download downloads to a cache dir by default, or specific local_dir
                     # It will preserve the target/version/filename structure in local_dir
                 )
@@ -82,8 +82,7 @@ class HuggingFaceService:
                 
         logger.info(f"Successfully downloaded {target} version {version} from HuggingFace.")
         
-        # Return path to model and metadata
-        model_path = downloaded_paths.get("model.pkl")
+        # Return metadata and metrics (paths are constructed dynamically at runtime)
         metadata_path = downloaded_paths.get("metadata.json")
         
         metadata = {}
@@ -95,7 +94,6 @@ class HuggingFaceService:
                 metrics = meta.get("metrics", {})
                 
         return {
-            "path": model_path,
             "metadata": metadata,
             "metrics": metrics
         }
