@@ -14,19 +14,35 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting up F1 AI Platform API...")
     try:
-        # Check if laptime has any versions, if not, bootstrap from HF
-        registry_state = ModelRegistry.get_registry_state()
-        laptime_info = registry_state.get("laptime", {})
-        if not laptime_info.get("versions"):
-            logger.info("Bootstrapping initial laptime model from Hugging Face...")
-            model_path = HuggingFaceService.download_model()
-            ModelRegistry.register_model(
-                target="laptime",
-                version="v1.0.0",
-                path=os.path.abspath(model_path),
-                metadata={"source": "huggingface", "repo_id": settings.model_repo_id}
-            )
-            ModelRegistry.switch_active_model("laptime", "v1.0.0")
+        # Sync latest models from Hugging Face on startup for known targets
+        targets_to_sync = ["laptime"]  # Add other targets as needed
+        
+        for target in targets_to_sync:
+            try:
+                versions = HuggingFaceService.list_versions(target)
+                if versions:
+                    latest_version = versions[0]
+                    state = ModelRegistry.get_registry_state()
+                    target_info = state.get(target, {"versions": []})
+                    
+                    # If we don't have this version, download and register it
+                    already_registered = any(v["version"] == latest_version for v in target_info.get("versions", []))
+                    if not already_registered:
+                        logger.info(f"Syncing latest {target} model {latest_version} from Hugging Face...")
+                        hf_data = HuggingFaceService.download_version(target, latest_version)
+                        ModelRegistry.register_model(
+                            target=target,
+                            version=latest_version,
+                            path=hf_data["path"],
+                            metrics=hf_data["metrics"],
+                            metadata=hf_data["metadata"]
+                        )
+                    
+                    # Always activate the latest version on startup
+                    ModelRegistry.switch_active_model(target, latest_version)
+            except Exception as e:
+                logger.error(f"Failed to sync {target} from HF during startup: {e}")
+
         
         # Load all active models into memory
         registry_state = ModelRegistry.get_registry_state()

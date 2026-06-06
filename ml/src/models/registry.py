@@ -3,6 +3,7 @@ import json
 import joblib
 from datetime import datetime
 from pathlib import Path
+from huggingface_hub import HfApi
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -49,7 +50,34 @@ def save_model(model, target_name, metrics, feature_list, encoder=None, scaler=N
     with open(meta_path, "w", encoding='utf-8') as f:
         json.dump(metadata, f, indent=4)
         
-    logger.info(f"Successfully saved all artifacts for {target_name} ({version}).")
+    logger.info(f"Successfully saved all artifacts locally for {target_name} ({version}).")
+    
+    # 5. Push to Hugging Face
+    hf_token = os.environ.get("HF_TOKEN")
+    hf_repo_id = os.environ.get("HF_REPO_ID", "Maheeth1/f1-race-predictor")
+    
+    if hf_token:
+        try:
+            logger.info(f"Pushing model {version} to Hugging Face repository: {hf_repo_id}")
+            api = HfApi()
+            
+            # Create a path in the repo like: target_name/version/
+            repo_path_prefix = f"{target_name}/{version}"
+            
+            api.upload_folder(
+                folder_path=str(target_dir),
+                path_in_repo=repo_path_prefix,
+                repo_id=hf_repo_id,
+                repo_type="model",
+                token=hf_token,
+                commit_message=f"Auto-upload: {target_name} model {version}"
+            )
+            logger.info("Successfully pushed model artifacts to Hugging Face.")
+        except Exception as e:
+            logger.error(f"Failed to push to Hugging Face: {e}")
+    else:
+        logger.warning("HF_TOKEN not set. Skipping automatic push to Hugging Face.")
+        
     return version
 
 def load_model(target_name, version="latest"):

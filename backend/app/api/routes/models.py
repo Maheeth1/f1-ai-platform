@@ -1,11 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException
-from typing import Dict, Any
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from typing import Dict, Any, List
 from app.services.model_registry import ModelRegistry
+from app.services.huggingface_service import HuggingFaceService
 from app.schemas.registry import (
     ModelRegistryResponse,
     ActiveModelsResponse,
     ModelRegistrationRequest,
-    ModelSwitchRequest
+    ModelSwitchRequest,
+    HFSyncRequest,
+    HFModelsResponse
 )
 
 router = APIRouter()
@@ -29,9 +32,49 @@ def get_active_models():
             active_models[target] = None
     return ActiveModelsResponse(active_models=active_models)
 
+@router.get("/hf/{target}", response_model=HFModelsResponse)
+def list_hf_models(target: str):
+    """Lists all available versions for a given target on Hugging Face."""
+    try:
+        versions = HuggingFaceService.list_versions(target)
+        return HFModelsResponse(target=target, available_versions=versions)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/sync")
+def sync_hf_model(req: HFSyncRequest):
+    """Downloads a model from HF, registers it locally, and activates it."""
+    try:
+        versions = HuggingFaceService.list_versions(req.target)
+        if not versions:
+            raise HTTPException(status_code=404, detail=f"No HF versions found for {req.target}")
+            
+        version_to_sync = req.version or versions[0]
+        
+        # Avoid re-downloading if already registered
+        state = ModelRegistry.get_registry_state()
+        target_info = state.get(req.target, {"versions": []})
+        already_registered = any(v["version"] == version_to_sync for v in target_info["versions"])
+        
+        if not already_registered:
+            hf_data = HuggingFaceService.download_version(req.target, version_to_sync)
+            ModelRegistry.register_model(
+                target=req.target,
+                version=version_to_sync,
+                path=hf_data["path"],
+                metrics=hf_data["metrics"],
+                metadata=hf_data["metadata"]
+            )
+            
+        # Switch to it
+        ModelRegistry.switch_active_model(req.target, version_to_sync)
+        return {"message": f"Successfully synced and activated {req.target} version {version_to_sync}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/switch")
 def switch_active_model(req: ModelSwitchRequest):
-    """Switches the active model for a specific target."""
+    """Switches the active model for a specific target locally."""
     try:
         ModelRegistry.switch_active_model(req.target, req.version)
         return {"message": f"Successfully switched {req.target} to version {req.version}"}
@@ -40,7 +83,7 @@ def switch_active_model(req: ModelSwitchRequest):
 
 @router.post("/rollback/{target}")
 def rollback_model(target: str):
-    """Rolls back the active model to the previous version."""
+    """Rolls back the active model to the previous version locally."""
     try:
         prev_version = ModelRegistry.rollback_model(target)
         return {"message": f"Successfully rolled back {target} to version {prev_version}"}
@@ -49,7 +92,7 @@ def rollback_model(target: str):
 
 @router.post("/register")
 def register_model(req: ModelRegistrationRequest):
-    """Registers a new model version (internal use / CI-CD)."""
+    """Registers a new model version (internal use)."""
     try:
         ModelRegistry.register_model(
             target=req.target,

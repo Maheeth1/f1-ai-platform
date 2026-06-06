@@ -31,3 +31,11 @@ class ModelSwitchRequest(BaseModel):
 
 class ActiveModelsResponse(BaseModel):
     active_models: Dict[str, Optional[ModelVersionInfo]]
+
+class HFSyncRequest(BaseModel):
+    target: str
+    version: Optional[str] = None  # If None, pulls the latest
+
+class HFModelsResponse(BaseModel):
+    target: str
+    available_versions: List[str]

@@ -1,20 +1,101 @@
 import os
-from huggingface_hub import hf_hub_download
+import json
+from typing import List, Optional, Dict, Any
+from huggingface_hub import HfApi, hf_hub_download
+from huggingface_hub.utils import EntryNotFoundError
 from app.core.config import settings
 from app.core.logger import logger
 
 class HuggingFaceService:
     @staticmethod
-    def download_model() -> str:
-        logger.info(f"Downloading model {settings.model_filename} from {settings.model_repo_id}")
+    def list_versions(target: str) -> List[str]:
+        """Queries the HF Hub to find all available version directories for a given target."""
+        logger.info(f"Listing versions for {target} from {settings.model_repo_id}")
+        api = HfApi()
+        
         try:
-            model_path = hf_hub_download(
+            # We list the repo files and extract unique directories under the target
+            # E.g., target/v20231010_120000/model.pkl
+            files = api.list_repo_tree(
                 repo_id=settings.model_repo_id,
-                filename=settings.model_filename,
-                token=settings.hf_token
+                repo_type="model",
+                token=settings.hf_token,
+                path_in_repo=target
             )
-            logger.info("Successfully downloaded model from HuggingFace.")
-            return model_path
+            
+            versions = set()
+            for file_info in files:
+                if isinstance(file_info, dict):
+                    # For older hf_hub version dictionary formats
+                    path = file_info.get("path", "")
+                else:
+                    path = getattr(file_info, "path", "")
+                    
+                # Path is like: laptime/v1.0.0/model.pkl
+                parts = path.split('/')
+                if len(parts) >= 2 and parts[0] == target:
+                    versions.add(parts[1])
+                    
+            return sorted(list(versions), reverse=True)
+            
+        except EntryNotFoundError:
+            logger.warning(f"No models found for target {target} in HF repo.")
+            return []
         except Exception as e:
-            logger.error(f"Error downloading model: {e}")
+            logger.error(f"Error listing HF versions: {e}")
             raise e
+
+    @staticmethod
+    def download_version(target: str, version: str) -> Dict[str, Any]:
+        """Downloads the model, metadata, and features from HF to the local backend/models/ directory."""
+        logger.info(f"Downloading {target} version {version} from {settings.model_repo_id}")
+        
+        # Local target directory
+        local_dir = os.path.join(os.path.dirname(__file__), "..", "..", "models", target, version)
+        os.makedirs(local_dir, exist_ok=True)
+        
+        files_to_download = ["model.pkl", "metadata.json", "feature_list.json"]
+        
+        downloaded_paths = {}
+        for filename in files_to_download:
+            try:
+                # E.g., laptime/v1.0.0/model.pkl
+                repo_path = f"{target}/{version}/{filename}"
+                local_path = hf_hub_download(
+                    repo_id=settings.model_repo_id,
+                    filename=repo_path,
+                    token=settings.hf_token,
+                    local_dir=os.path.join(os.path.dirname(__file__), "..", "..", "models")
+                    # Note: hf_hub_download downloads to a cache dir by default, or specific local_dir
+                    # It will preserve the target/version/filename structure in local_dir
+                )
+                downloaded_paths[filename] = local_path
+            except EntryNotFoundError:
+                if filename == "model.pkl":
+                    logger.error(f"Missing core model.pkl for {target}/{version}")
+                    raise
+                else:
+                    logger.warning(f"Missing {filename} for {target}/{version}, skipping.")
+            except Exception as e:
+                logger.error(f"Failed to download {filename}: {e}")
+                raise e
+                
+        logger.info(f"Successfully downloaded {target} version {version} from HuggingFace.")
+        
+        # Return path to model and metadata
+        model_path = downloaded_paths.get("model.pkl")
+        metadata_path = downloaded_paths.get("metadata.json")
+        
+        metadata = {}
+        metrics = {}
+        if metadata_path and os.path.exists(metadata_path):
+            with open(metadata_path, "r", encoding='utf-8') as f:
+                meta = json.load(f)
+                metadata = meta
+                metrics = meta.get("metrics", {})
+                
+        return {
+            "path": model_path,
+            "metadata": metadata,
+            "metrics": metrics
+        }
