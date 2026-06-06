@@ -14,6 +14,15 @@ sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 from src.utils.logger import get_logger
 from src.models import registry
 
+# Patch __main__ to ensure AutoCatBoostRegressor unpickles correctly 
+# if it was pickled when defined in the main script
+import __main__
+try:
+    from src.models.wrappers import AutoCatBoostRegressor
+    __main__.AutoCatBoostRegressor = AutoCatBoostRegressor
+except ImportError:
+    pass
+
 logger = get_logger("api")
 
 app = FastAPI(title="F1 AI Platform Prediction API", version="1.0.0")
@@ -103,10 +112,19 @@ async def predict(payload: PredictionRequest):
                 df[f] = 0.0 # Default fallback
                 
         # Subset and prepare for inference
-        X = df[features]
-        cat_cols = X.select_dtypes(include=['object']).columns
-        for col in cat_cols:
-            X[col] = X[col].astype(str).astype('category')
+        X = df[features].copy()
+        
+        KNOWN_CAT_COLS = [
+            'Driver', 'Compound', 'Team', 'EventName', 
+            'Country', 'Circuit', 'SessionType', 'TrackStatus',
+            'PrevSector1Time', 'PrevSector2Time', 'PrevSector3Time'
+        ]
+        
+        for col in X.columns:
+            if col in KNOWN_CAT_COLS or X[col].dtype == 'object' or X[col].dtype.name == 'category':
+                X[col] = X[col].astype(str).astype('category')
+            else:
+                X[col] = pd.to_numeric(X[col], errors='coerce').fillna(0.0)
             
         # Run Prediction
         prediction = float(model.predict(X)[0])
