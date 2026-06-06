@@ -37,10 +37,13 @@ class ModelRegistry:
             registry[target] = {"active_version": None, "versions": []}
             
         # Check if version already exists
-        for v in registry[target]["versions"]:
+        for i, v in enumerate(registry[target]["versions"]):
             if v["version"] == version:
-                raise ValueError(f"Version {version} already exists for target {target}")
-                
+                # Update path if it exists but we downloaded it anyway
+                registry[target]["versions"][i]["path"] = path
+                cls._save_registry_data(registry)
+                logger.info(f"Model {version} for {target} was already registered. Updated path.")
+                return
         new_version = {
             "version": version,
             "path": path,
@@ -73,7 +76,10 @@ class ModelRegistry:
         if not version_info:
             raise ValueError(f"Version {version_to_load} not found for target {target}")
             
-        path = version_info["path"]
+        # Dynamically reconstruct the local path, ignoring whatever is saved in the registry
+        # This prevents absolute Windows paths from crashing Linux servers (Render cache issue)
+        backend_models_dir = os.path.join(os.path.dirname(__file__), "..", "..", "models")
+        path = os.path.abspath(os.path.join(backend_models_dir, target, version_to_load, "model.pkl"))
         target_dir = os.path.dirname(path)
         
         if not os.path.exists(path):

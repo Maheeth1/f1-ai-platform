@@ -27,9 +27,14 @@ async def lifespan(app: FastAPI):
                     state = ModelRegistry.get_registry_state()
                     target_info = state.get(target, {"versions": []})
                     
-                    # If we don't have this version, download and register it
+                    # Check if registered AND the model file physically exists
                     already_registered = any(v["version"] == latest_version for v in target_info.get("versions", []))
-                    if not already_registered:
+                    
+                    backend_models_dir = os.path.join(os.path.dirname(__file__), "..", "models")
+                    expected_model_path = os.path.abspath(os.path.join(backend_models_dir, target, latest_version, "model.pkl"))
+                    model_exists_physically = os.path.exists(expected_model_path)
+                    
+                    if not already_registered or not model_exists_physically:
                         logger.info(f"Syncing latest {target} model {latest_version} from Hugging Face...")
                         hf_data = HuggingFaceService.download_version(target, latest_version)
                         ModelRegistry.register_model(
