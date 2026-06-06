@@ -15,13 +15,18 @@ class Settings(BaseModel):
     model_filename: str = "f1_model.pkl"
 
     # CORS
-    # CORS
     cors_origins: list[str] = [
         "https://f1-ai.example.com", 
-        "http://localhost:3000"
+        "http://localhost:3000",
+        "https://f1-ai-platform-phi.vercel.app"
     ]
     cors_methods: list[str] = ["*"]
     cors_headers: list[str] = ["*"]
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        if env_cors := os.environ.get("CORS_ORIGINS"):
+            self.cors_origins.extend([origin.strip() for origin in env_cors.split(",")])
     
     # Redis
     redis_url: str = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
