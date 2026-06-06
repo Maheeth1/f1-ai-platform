@@ -4,7 +4,7 @@ from datetime import datetime
 
 class ModelVersionInfo(BaseModel):
     version: str
-    path: str
+    path: Optional[str] = None
     registered_at: str
     metrics: Dict[str, Any]
     metadata: Dict[str, Any]
