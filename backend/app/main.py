@@ -7,7 +7,8 @@ from app.core.config import settings
 from app.core.logger import logger
 from app.services.huggingface_service import HuggingFaceService
 from app.services.model_registry import ModelRegistry
-from app.api.routes import health, models, prediction, metadata, metrics
+from app.api.routes import health, models, prediction, metadata, metrics, auth
+from app.api.middleware.security import SecurityHeadersMiddleware
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -68,7 +69,8 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Enable CORS
+# Add Middleware
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -79,6 +81,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(health.router, tags=["Health"])
+app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(models.router, prefix="/models", tags=["Models Registry"])
 app.include_router(metadata.router, prefix="/metadata", tags=["Metadata"])
 app.include_router(metrics.router, tags=["System"])

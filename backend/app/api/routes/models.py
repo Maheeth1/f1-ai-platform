@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from typing import Dict, Any, List
 from app.services.model_registry import ModelRegistry
 from app.services.huggingface_service import HuggingFaceService
+from app.api.dependencies import get_current_user
 from app.api.middleware.cache import cached
 from app.schemas.registry import (
     ModelRegistryResponse,
@@ -45,7 +46,7 @@ def list_hf_models(target: str, request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/sync")
-def sync_hf_model(req: HFSyncRequest):
+def sync_hf_model(req: HFSyncRequest, current_user: str = Depends(get_current_user)):
     """Downloads a model from HF, registers it locally, and activates it."""
     try:
         versions = HuggingFaceService.list_versions(req.target)

@@ -6,3 +6,6 @@ pydantic
 huggingface-hub
 scikit-learn
 redis
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
