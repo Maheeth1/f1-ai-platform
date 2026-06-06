@@ -14,8 +14,7 @@ def predict(
     request: Request,
     data: PredictionRequest,
     target: str = Depends(require_model_loaded_for_target),
-    inference_service: InferenceService = Depends(get_inference_service),
-    current_user: str = Depends(get_current_user)
+    inference_service: InferenceService = Depends(get_inference_service)
 ):
     try:
         return inference_service.predict(target, data)
@@ -32,8 +31,7 @@ def predict_batch(
     request: Request,
     data: BatchPredictionRequest,
     target: str = Depends(require_model_loaded_for_target),
-    inference_service: InferenceService = Depends(get_inference_service),
-    current_user: str = Depends(get_current_user)
+    inference_service: InferenceService = Depends(get_inference_service)
 ):
     try:
         return inference_service.predict_batch(target, data)
