@@ -307,15 +307,17 @@ def main():
     best_model = models['Stacking Ensemble']
     best_metrics = results['Stacking Ensemble']
     
-    logger.info("Saving Stacking Ensemble to artifact registry...")
-    version = registry.save_model(
-        model=best_model,
-        target_name=args.target,
-        metrics=best_metrics,
+    logger.info("Initiating Automated Deployment Pipeline...")
+    from src.pipeline import deploy
+    deploy.evaluate_and_promote_candidate(
+        candidate_model=best_model,
+        X_test=X_test,
+        y_test=y_test,
+        candidate_metrics=best_metrics,
         feature_list=list(X.columns),
+        target_name=args.target,
         model_type="StackingEnsemble"
     )
-    logger.info(f"Model successfully saved as version: {version}")
 
 if __name__ == "__main__":
     main()
