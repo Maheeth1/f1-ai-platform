@@ -16,9 +16,9 @@ class ModelRegistry:
     def _get_registry_data(cls) -> Dict[str, Any]:
         if not os.path.exists(REGISTRY_PATH):
             return {
-                "laptime": {"active_version": None, "versions": []},
-                "gridposition": {"active_version": None, "versions": []},
-                "simulation": {"active_version": None, "versions": []}
+                "LapTimeSeconds": {"active_version": None, "versions": []},
+                "GridPosition": {"active_version": None, "versions": []},
+                "Position": {"active_version": None, "versions": []}
             }
         with open(REGISTRY_PATH, 'r') as f:
             return json.load(f)
