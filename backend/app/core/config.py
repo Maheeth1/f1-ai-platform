@@ -14,5 +14,7 @@ class Settings(BaseModel):
     cors_origins: list[str] = ["*"]
     cors_methods: list[str] = ["*"]
     cors_headers: list[str] = ["*"]
+    # Redis
+    redis_url: str = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 
 settings = Settings()

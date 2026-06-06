@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from typing import Dict, Any, List
 from app.services.model_registry import ModelRegistry
 from app.services.huggingface_service import HuggingFaceService
+from app.api.middleware.cache import cached
 from app.schemas.registry import (
     ModelRegistryResponse,
     ActiveModelsResponse,
@@ -14,7 +15,8 @@ from app.schemas.registry import (
 router = APIRouter()
 
 @router.get("", response_model=ModelRegistryResponse)
-def get_registry():
+@cached(ttl=60)
+def get_registry(request: Request):
     """Returns the full model registry state."""
     return ModelRegistry.get_registry_state()
 
@@ -33,7 +35,8 @@ def get_active_models():
     return ActiveModelsResponse(active_models=active_models)
 
 @router.get("/hf/{target}", response_model=HFModelsResponse)
-def list_hf_models(target: str):
+@cached(ttl=300)
+def list_hf_models(target: str, request: Request):
     """Lists all available versions for a given target on Hugging Face."""
     try:
         versions = HuggingFaceService.list_versions(target)
