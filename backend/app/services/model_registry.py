@@ -17,7 +17,6 @@ class ModelRegistry:
         if not os.path.exists(REGISTRY_PATH):
             return {
                 "LapTimeSeconds": {"active_version": None, "versions": []},
-                "GridPosition": {"active_version": None, "versions": []},
                 "Position": {"active_version": None, "versions": []}
             }
         with open(REGISTRY_PATH, 'r') as f:

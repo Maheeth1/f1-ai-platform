@@ -4,11 +4,11 @@ This report compares the performance of individual models against our advanced e
 
 | Model | RMSE | MAE | R² |
 | :--- | :--- | :--- | :--- |
-| **CatBoost** | 9.9940 | 4.4410 | 0.5592 |
-| **LightGBM** | 9.7050 | 4.2006 | 0.5843 |
-| **XGBoost** | 9.4245 | 5.0880 | 0.6080 |
-| **Weighted Ensemble** | 8.7803 | 4.2371 | 0.6598 |
-| **Stacking Ensemble** | 12.5521 | 9.7325 | 0.3046 |
+| **CatBoost** | 0.6748 | 0.3203 | 0.9806 |
+| **LightGBM** | 0.6682 | 0.2766 | 0.9810 |
+| **XGBoost** | 0.6935 | 0.3364 | 0.9795 |
+| **Weighted Ensemble** | 0.6541 | 0.2921 | 0.9818 |
+| **Stacking Ensemble** | 0.6554 | 0.2872 | 0.9817 |
 
 ## Conclusion
 The **Stacking Ensemble** and **Weighted Ensemble** automatically combine our base models (CatBoost, LightGBM, XGBoost) to reduce variance and improve overall validation performance.

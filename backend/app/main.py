@@ -17,7 +17,7 @@ async def lifespan(app: FastAPI):
     logger.info("Starting up F1 AI Platform API...")
     try:
         # Sync latest models from Hugging Face on startup for known targets
-        targets_to_sync = ["LapTimeSeconds", "GridPosition", "Position"]
+        targets_to_sync = ["LapTimeSeconds", "Position"]
         
         for target in targets_to_sync:
             try:
