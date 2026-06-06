@@ -1,0 +1,10 @@
+{
+    "promoted": true,
+    "improvement_percentage": 0.0,
+    "candidate": {
+        "MAE": 0.287155016109337,
+        "RMSE": 0.655442437409558,
+        "R2": 0.9816827455253202
+    },
+    "production": null
+}
