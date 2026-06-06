@@ -250,7 +250,7 @@ def main():
         'AvgSpeed', 'MaxSpeed', 'MinSpeed', 'AvgThrottle', 'MaxThrottle', 'BrakePercentage',
         'DRSPercentage', 'AvgRPM', 'MaxRPM', 'AvgGear', 'CorneringSpeed', 'TrackStatus', 'IsAccurate'
     ]
-    df = df.drop(columns=[col for col in drop_cols if col in df.columns], errors='ignore')
+    df = df.drop(columns=[col for col in drop_cols if col in df.columns and col != args.target], errors='ignore')
     
     # Automatically identify categorical columns
     cat_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()

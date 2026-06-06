@@ -87,6 +87,7 @@ def evaluate_and_promote_candidate(candidate_model, X_test, y_test, candidate_me
     generate_metrics_json(candidate_metrics, prod_metrics, promote, improvement, reports_dir)
     generate_markdown_report(candidate_metrics, prod_metrics, promote, improvement, version, reports_dir)
     
+        
 def generate_metrics_json(candidate_metrics, prod_metrics, promoted, improvement, out_dir):
     data = {
         "promoted": promoted,
@@ -94,7 +95,7 @@ def generate_metrics_json(candidate_metrics, prod_metrics, promoted, improvement
         "candidate": candidate_metrics,
         "production": prod_metrics
     }
-    with open(out_dir / "metrics.json", "w") as f:
+    with open(out_dir / "metrics.json", "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
         
 def generate_markdown_report(candidate_metrics, prod_metrics, promoted, improvement, version, out_dir):
@@ -135,5 +136,5 @@ def generate_markdown_report(candidate_metrics, prod_metrics, promoted, improvem
         content += "The candidate model failed to outperform the production baseline on the holdout test set. "
         content += "Consider tuning hyperparameters, adding new features, or checking for data distribution shifts."
         
-    with open(out_dir / "evaluation_report.md", "w") as f:
+    with open(out_dir / "evaluation_report.md", "w", encoding="utf-8") as f:
         f.write(content)
