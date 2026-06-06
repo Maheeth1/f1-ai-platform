@@ -1,9 +1,20 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+from typing import List
 
 class PredictionRequest(BaseModel):
-    Driver: int = Field(..., ge=0)
-    LapNumber: int = Field(..., ge=1)
-    TyreLife: int = Field(..., ge=0)
+    model_config = ConfigDict(extra='allow')
+    Driver: str
+    LapNumber: int = Field(default=1)
+    TyreLife: int = Field(default=0)
+
+class BatchPredictionRequest(BaseModel):
+    requests: List[PredictionRequest]
 
 class PredictionResponse(BaseModel):
-    predicted_position: float
+    prediction: float
+    confidence: float
+    model_version: str
+    latency_ms: float
+
+class BatchPredictionResponse(BaseModel):
+    responses: List[PredictionResponse]

@@ -75,14 +75,40 @@ class ModelRegistry:
             raise ValueError(f"Version {version_to_load} not found for target {target}")
             
         path = version_info["path"]
+        target_dir = os.path.dirname(path)
+        
         if not os.path.exists(path):
             logger.error(f"Model file not found at {path}")
             raise FileNotFoundError(f"Model file not found at {path}")
             
         try:
             model = joblib.load(path)
-            cls._active_models[target] = model
-            logger.info(f"SUCCESS: Model {version_to_load} for {target} loaded into memory.")
+            
+            encoder = None
+            encoder_path = os.path.join(target_dir, "encoder.pkl")
+            if os.path.exists(encoder_path):
+                encoder = joblib.load(encoder_path)
+                
+            scaler = None
+            scaler_path = os.path.join(target_dir, "scaler.pkl")
+            if os.path.exists(scaler_path):
+                scaler = joblib.load(scaler_path)
+                
+            features = []
+            features_path = os.path.join(target_dir, "feature_list.json")
+            if os.path.exists(features_path):
+                with open(features_path, "r", encoding='utf-8') as f:
+                    import json
+                    features = json.load(f).get("features", [])
+            
+            cls._active_models[target] = {
+                "model": model,
+                "encoder": encoder,
+                "scaler": scaler,
+                "features": features,
+                "version": version_to_load
+            }
+            logger.info(f"SUCCESS: Model {version_to_load} for {target} loaded into memory with artifacts.")
         except Exception as e:
             logger.error(f"ERROR: Failed to load model from {path}: {e}")
             raise e

@@ -54,7 +54,7 @@ class HuggingFaceService:
         local_dir = os.path.join(os.path.dirname(__file__), "..", "..", "models", target, version)
         os.makedirs(local_dir, exist_ok=True)
         
-        files_to_download = ["model.pkl", "metadata.json", "feature_list.json"]
+        files_to_download = ["model.pkl", "metadata.json", "feature_list.json", "encoder.pkl", "scaler.pkl"]
         
         downloaded_paths = {}
         for filename in files_to_download:
