@@ -16,27 +16,49 @@
     font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
     overflow-x: hidden;
   }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-f1-dark);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-f1-border);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-f1-gray);
+  }
 }
 
 /* Glassmorphism panel styles */
 .glass-panel {
   background: rgba(21, 22, 32, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--color-f1-border);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.glass-panel-hover {
+  transition: all 0.3s ease;
 }
 
 .glass-panel-hover:hover {
   border-color: rgba(225, 6, 0, 0.3);
-  box-shadow: 0 0 20px rgba(225, 6, 0, 0.05);
+  box-shadow: 0 0 20px rgba(225, 6, 0, 0.1);
+  transform: translateY(-2px);
 }
 
 /* F1 carbon grid accent */
 .carbon-grid {
-  background-size: 4px 4px;
+  background-size: 32px 32px;
   background-image: 
-    linear-gradient(0deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
 }
 
 /* Animated neon pulse */
@@ -53,4 +75,12 @@
 
 .pulse-neon-border {
   animation: pulse-neon 2s infinite ease-in-out;
+}
+
+/* Gradient text utility */
+.text-gradient {
+  background: linear-gradient(to right, #ffffff, #888d96);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
