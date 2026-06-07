@@ -1,65 +1,141 @@
-import Image from "next/image";
+"use client";
+
+import { motion } from "framer-motion";
+import Link from "next/link";
+import { Activity, BrainCircuit, LineChart, Cpu, Trophy, Zap } from "lucide-react";
 
 export default function Home() {
+  const features = [
+    {
+      title: "Real-time Telemetry",
+      description: "Dive deep into throttle, braking, and speed traces across every corner.",
+      icon: <Activity className="text-f1-red" size={24} />,
+    },
+    {
+      title: "Predictive Analytics",
+      description: "Machine learning models forecasting lap times, tire degradation, and race outcomes.",
+      icon: <BrainCircuit className="text-f1-red" size={24} />,
+    },
+    {
+      title: "Interactive Track Maps",
+      description: "Visualize drivers on physical track coordinates with speed and sector heatmaps.",
+      icon: <LineChart className="text-f1-red" size={24} />,
+    },
+    {
+      title: "Strategy Simulator",
+      description: "Run Monte Carlo simulations to find the optimal pit window and tire sequence.",
+      icon: <Cpu className="text-f1-red" size={24} />,
+    },
+    {
+      title: "Driver Comparison",
+      description: "Overlay delta times and sector performances to see exactly where time was won or lost.",
+      icon: <Trophy className="text-f1-red" size={24} />,
+    },
+    {
+      title: "AI Race Analyst",
+      description: "Ask natural language questions about race events and get instant, data-backed insights.",
+      icon: <Zap className="text-f1-red" size={24} />,
+    },
+  ];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="flex flex-col flex-1">
+      {/* Hero Section */}
+      <section className="relative flex-1 flex items-center justify-center min-h-[80vh] overflow-hidden px-6">
+        {/* Background Gradients */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-f1-red/10 rounded-full blur-[120px]" />
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-[100px]" />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+        <div className="relative z-10 max-w-5xl mx-auto text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6">
+              AI-Powered <br className="hidden md:block" />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-f1-red to-red-400">
+                Formula 1
+              </span>{" "}
+              Race Intelligence
+            </h1>
+          </motion.div>
+
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
+            className="text-lg md:text-xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed"
           >
-            Documentation
-          </a>
+            A professional-grade analytics dashboard combining historical telemetry, machine learning predictions, and AI-generated insights for the ultimate motorsport engineering experience.
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
+            className="flex flex-col sm:flex-row items-center justify-center gap-4"
+          >
+            <Link
+              href="/dashboard"
+              className="bg-f1-red hover:bg-f1-red-hover text-white px-8 py-4 rounded-full font-bold text-lg transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(225,6,0,0.4)] flex items-center gap-2"
+            >
+              Enter Dashboard <Activity size={20} />
+            </Link>
+            <button className="glass hover:bg-white/10 px-8 py-4 rounded-full font-bold text-lg transition-all text-white">
+              View Documentation
+            </button>
+          </motion.div>
         </div>
-      </main>
+      </section>
+
+      {/* Feature Showcase */}
+      <section className="py-24 px-6 border-t border-white/5 relative z-10 bg-black/40">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Engineering-Grade Capabilities</h2>
+            <p className="text-gray-400 max-w-2xl mx-auto">Explore data like a real trackside engineer with our comprehensive suite of intelligence modules.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {features.map((feature, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: idx * 0.1 }}
+                className="glass-panel p-8 rounded-2xl group hover:border-f1-red/30 transition-colors"
+              >
+                <div className="w-12 h-12 rounded-xl bg-f1-red/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                  {feature.icon}
+                </div>
+                <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">{feature.description}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Live Stats Ticker placeholder */}
+      <div className="w-full bg-f1-red text-white py-3 overflow-hidden whitespace-nowrap border-y border-white/10 flex items-center">
+        <div className="animate-marquee flex gap-12 text-sm font-bold tracking-widest uppercase">
+          <span>Verstappen Wins Monaco</span>
+          <span>•</span>
+          <span>Leclerc Secures Pole</span>
+          <span>•</span>
+          <span>McLaren Updates Aero Package</span>
+          <span>•</span>
+          <span>Predictive Model Accuracy: 94.2%</span>
+          <span>•</span>
+          <span>Verstappen Wins Monaco</span>
+          <span>•</span>
+          <span>Leclerc Secures Pole</span>
+        </div>
+      </div>
     </div>
   );
 }
