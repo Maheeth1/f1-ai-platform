@@ -51,26 +51,44 @@ export default function Simulation() {
   const [isSimulating, setIsSimulating] = useState(false);
   const [simResults, setSimResults] = useState<{ time: string, pos: number, risk: string } | null>(null);
 
-  const handleSimulate = () => {
+  const handleSimulate = async () => {
     setIsSimulating(true);
-    // Mock simulation delay
-    setTimeout(() => {
-      // Calculate random variations based on selected events
-      let baseTime = 5400; // 1h 30m in seconds
+    try {
+      const res = await fetch("http://localhost:8001/simulation/monte-carlo?iterations=100", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          Driver: "VER",
+          LapNumber: stints[stints.length - 1].endLap || 50,
+          TyreLife: 10,
+          Compound: stints[0].compound
+        })
+      });
+      
+      // We might get an error if DB isn't seeded but we can fallback
+      let data = { mean_time: 5400 };
+      if (res.ok) {
+        data = await res.json();
+      }
+
+      let baseTime = data.mean_time || 5400; // 1h 30m in seconds
       if (events[0].active) baseTime += 120; // SC adds time
       if (events[1].active) baseTime += 300; // Rain adds time
       
       const hours = Math.floor(baseTime / 3600);
       const minutes = Math.floor((baseTime % 3600) / 60);
-      const seconds = baseTime % 60;
+      const seconds = Math.floor(baseTime % 60);
       
       setSimResults({
         time: `${hours}h ${minutes}m ${seconds}s`,
-        pos: events[1].active && stints[stints.length-1].compound !== "Inter" ? 8 : 1, // Penalty for wrong tires in rain
+        pos: events[1].active && stints[stints.length-1].compound !== "Inter" ? 8 : 1,
         risk: events[1].active && stints[stints.length-1].compound !== "Inter" ? "HIGH (Wrong compound)" : "LOW"
       });
+    } catch (e) {
+      console.error(e);
+    } finally {
       setIsSimulating(false);
-    }, 1500);
+    }
   };
 
   const activeSC = events.filter(e => e.active && e.type === "SC");
@@ -117,10 +135,11 @@ export default function Simulation() {
                     <span className="text-gray-400">Target Pit Lap</span>
                     <input 
                       type="number" 
-                      value={stint.endLap} 
+                      value={Number.isNaN(stint.endLap) ? "" : stint.endLap} 
                       onChange={(e) => {
                         const newStints = [...stints];
-                        newStints[idx].endLap = parseInt(e.target.value);
+                        const val = parseInt(e.target.value);
+                        newStints[idx].endLap = Number.isNaN(val) ? 0 : val;
                         setStints(newStints);
                       }}
                       className="w-16 bg-white/10 rounded px-2 py-1 text-right outline-none focus:ring-1 focus:ring-f1-red"

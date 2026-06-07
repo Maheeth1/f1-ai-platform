@@ -8,7 +8,7 @@ import {
 import { Play, Pause, SkipBack, SkipForward, FastForward, Activity, AlertTriangle } from "lucide-react";
 
 // Mock trace data representing a single lap comparison
-const TRACE_DATA = Array.from({ length: 100 }).map((_, i) => {
+const FALLBACK_TRACE_DATA = Array.from({ length: 100 }).map((_, i) => {
   const distance = i * 50; // meters
   
   // Base speed curve
@@ -36,9 +36,21 @@ const TRACE_DATA = Array.from({ length: 100 }).map((_, i) => {
 });
 
 export default function Comparison() {
+  const [traceData, setTraceData] = useState(FALLBACK_TRACE_DATA);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackTime, setPlaybackTime] = useState(0); // 0 to 100 representing percentage of lap
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
+
+  useEffect(() => {
+    fetch("http://localhost:8001/api/data/telemetry/comparison?year=2023&race_name=Monaco&driver1=VER&driver2=NOR")
+      .then(res => res.json())
+      .then(data => {
+        if(data.traces && data.traces.length > 0) {
+          setTraceData(data.traces);
+        }
+      })
+      .catch(console.error);
+  }, []);
 
   // Playback loop
   useEffect(() => {
@@ -57,7 +69,7 @@ export default function Comparison() {
     return () => clearInterval(interval);
   }, [isPlaying, playbackSpeed]);
 
-  const currentDataPoint = TRACE_DATA[Math.min(99, Math.floor(playbackTime))];
+  const currentDataPoint = traceData[Math.min(traceData.length - 1, Math.floor((playbackTime / 100) * traceData.length))] || traceData[0];
   const deltaColor = currentDataPoint.delta < 0 ? "#22c55e" : "#ef4444"; // Green if VER faster, Red if NOR faster
   const deltaPrefix = currentDataPoint.delta > 0 ? "+" : "";
 
@@ -173,7 +185,7 @@ export default function Comparison() {
           </h3>
           <div className="h-[300px] w-full relative">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={TRACE_DATA} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+              <LineChart data={traceData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                 <XAxis dataKey="distance" stroke="#555" tick={false} />
                 <YAxis stroke="#555" tick={{ fill: '#888', fontSize: 12 }} domain={['dataMin - 20', 'dataMax + 20']} />
@@ -200,7 +212,7 @@ export default function Comparison() {
           </h3>
           <div className="h-[300px] w-full relative">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={TRACE_DATA} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+              <LineChart data={traceData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                 <XAxis dataKey="distance" stroke="#555" tick={false} />
                 <YAxis stroke="#555" tick={{ fill: '#888', fontSize: 12 }} />

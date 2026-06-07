@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Gauge, Zap, Flame, ThermometerSun } from "lucide-react";
 
 // Mock data: A simple loop resembling a generic F1 circuit (like Monza)
 // We break the track into segments for heatmap coloring
-const TRACK_SEGMENTS = Array.from({ length: 100 }).map((_, i) => {
+const FALLBACK_TRACK_SEGMENTS = Array.from({ length: 100 }).map((_, i) => {
   const t = i / 100;
   const angle = t * Math.PI * 2;
   
@@ -38,11 +38,27 @@ const TRACK_SEGMENTS = Array.from({ length: 100 }).map((_, i) => {
 type HeatmapMode = "speed" | "throttle" | "brake" | "none";
 
 export default function TrackIntelligence() {
-  const [hoveredPoint, setHoveredPoint] = useState<typeof TRACK_SEGMENTS[0] | null>(null);
+  const [trackSegments, setTrackSegments] = useState(FALLBACK_TRACK_SEGMENTS);
+  const [hoveredPoint, setHoveredPoint] = useState<typeof FALLBACK_TRACK_SEGMENTS[0] | null>(null);
   const [mode, setMode] = useState<HeatmapMode>("none");
 
+  useEffect(() => {
+    fetch("http://localhost:8001/api/data/track/2023/Monaco")
+      .then(res => res.json())
+      .then(data => {
+        if(data.segments && data.segments.length > 0) {
+          const mapped = data.segments.map((seg: any, i: number) => ({
+            ...seg,
+            id: i
+          }));
+          setTrackSegments(mapped);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
   // Determine color based on mode
-  const getColor = (segment: typeof TRACK_SEGMENTS[0]) => {
+  const getColor = (segment: typeof FALLBACK_TRACK_SEGMENTS[0]) => {
     if (mode === "none") return "#ffffff";
     if (mode === "speed") {
       const s = segment.telemetry.speed;
@@ -81,8 +97,8 @@ export default function TrackIntelligence() {
           {/* SVG Track */}
           <svg viewBox="0 0 800 400" className="w-full h-full drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]">
             {/* Draw Path Segments for Heatmap */}
-            {TRACK_SEGMENTS.map((seg, i) => {
-              const next = TRACK_SEGMENTS[(i + 1) % TRACK_SEGMENTS.length];
+            {trackSegments.map((seg, i) => {
+              const next = trackSegments[(i + 1) % trackSegments.length];
               return (
                 <line
                   key={`line-${seg.id}`}
@@ -99,7 +115,7 @@ export default function TrackIntelligence() {
             })}
 
             {/* Interactive Overlay Points */}
-            {TRACK_SEGMENTS.map((seg) => (
+            {trackSegments.map((seg) => (
               <circle
                 key={`point-${seg.id}`}
                 cx={seg.x}

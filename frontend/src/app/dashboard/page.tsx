@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useEffect } from "react";
+
 import { motion } from "framer-motion";
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, 
@@ -8,7 +10,7 @@ import {
 import { Trophy, Flag, Timer, Zap } from "lucide-react";
 
 // Mock Data for the prototype
-const driverStandings = [
+const fallbackStandings = [
   { driver: "VER", points: 400, wins: 15, podiums: 18 },
   { driver: "NOR", points: 310, wins: 4, podiums: 12 },
   { driver: "LEC", points: 280, wins: 2, podiums: 10 },
@@ -34,6 +36,25 @@ const driverRadar = [
 ];
 
 export default function Dashboard() {
+  const [driverStandings, setDriverStandings] = useState(fallbackStandings);
+
+  useEffect(() => {
+    fetch("http://localhost:8001/api/data/standings")
+      .then(res => res.json())
+      .then(data => {
+        if(Array.isArray(data)) {
+          const formatted = data.map((d: any) => ({
+            driver: d.name.substring(0, 3).toUpperCase(),
+            points: d.points,
+            wins: d.wins,
+            podiums: d.podiums
+          }));
+          setDriverStandings(formatted);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
   return (
     <div className="p-6 md:p-10 max-w-[1600px] mx-auto w-full">
       <div className="mb-8 flex items-end justify-between">

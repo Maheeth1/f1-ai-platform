@@ -1,7 +1,7 @@
 import os
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-import google.generativeai as genai
+from google import genai
 from app.core.logger import logger
 
 router = APIRouter()
@@ -30,8 +30,7 @@ async def ai_race_analyst(request: ChatRequest):
         )
 
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-pro-latest')
+        client = genai.Client(api_key=api_key)
         
         system_prompt = f"""You are an expert Formula 1 Race Engineer and Analyst. 
         You have access to telemetry data for {request.context_race} focusing on {request.context_driver}.
@@ -40,7 +39,10 @@ async def ai_race_analyst(request: ChatRequest):
 
         prompt = f"System: {system_prompt}\nUser: {request.message}"
         
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt
+        )
         return ChatResponse(reply=response.text)
     except Exception as e:
         logger.error(f"Gemini API error: {e}")
@@ -56,10 +58,13 @@ async def generate_race_story(race_name: str = "Monaco 2025"):
         return {"story": f"**(Mocked Story)** The {race_name} was a masterclass in strategy. Despite early rain threatening the grid, Red Bull executed a flawless overcut..."}
     
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        client = genai.Client(api_key=api_key)
         prompt = f"Write a thrilling, 2-paragraph technical race summary for the F1 {race_name}. Focus on tire strategy and a dramatic battle for the lead."
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt
+        )
         return {"story": response.text}
     except Exception as e:
+        logger.error(f"Gemini API error: {e}")
         raise HTTPException(status_code=500, detail="Error generating story.")

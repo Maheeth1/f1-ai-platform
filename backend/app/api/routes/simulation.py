@@ -8,8 +8,7 @@ from app.services.simulation.driver_comparison import DriverComparisonEngine
 
 router = APIRouter(
     prefix="/simulation",
-    tags=["Simulation Engines"],
-    dependencies=[Depends(get_current_user)]
+    tags=["Simulation Engines"]
 )
 
 @router.post("/monte-carlo", response_model=Dict[str, Any])

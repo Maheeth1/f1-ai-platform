@@ -23,7 +23,7 @@ export default function AIAnalyst() {
     setIsTyping(true);
 
     try {
-      const res = await fetch("http://localhost:8000/analyst/chat", {
+      const res = await fetch("http://localhost:8001/analyst/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userMsg, context_race: "Monaco 2025", context_driver: "Max Verstappen" })
@@ -40,7 +40,7 @@ export default function AIAnalyst() {
   const handleGenerateStory = async () => {
     setIsGeneratingStory(true);
     try {
-      const res = await fetch("http://localhost:8000/analyst/story?race_name=Monaco 2025", { method: "POST" });
+      const res = await fetch("http://localhost:8001/analyst/story?race_name=Monaco 2025", { method: "POST" });
       const data = await res.json();
       setStory(data.story);
     } catch (error) {
