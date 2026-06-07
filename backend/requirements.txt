@@ -19,3 +19,5 @@ asyncpg
 alembic
 fastf1
 psycopg2-binary
+
+google-generativeai

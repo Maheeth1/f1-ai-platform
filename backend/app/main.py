@@ -7,7 +7,7 @@ from app.core.config import settings, MODEL_DIR
 from app.core.logger import logger
 from app.services.huggingface_service import HuggingFaceService
 from app.services.model_registry import ModelRegistry
-from app.api.routes import health, models, prediction, metadata, metrics, auth, simulation, ingest
+from app.api.routes import health, models, prediction, metadata, metrics, auth, simulation, ingest, analyst
 from app.api.middleware.security import SecurityHeadersMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 
@@ -103,3 +103,4 @@ app.include_router(metrics.router, tags=["System"])
 app.include_router(prediction.router, tags=["Prediction"])
 app.include_router(simulation.router, tags=["Simulation Engines"])
 app.include_router(ingest.router, prefix="/ingest", tags=["Data Ingestion"])
+app.include_router(analyst.router, prefix="/analyst", tags=["AI Analyst"])

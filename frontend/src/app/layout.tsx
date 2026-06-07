@@ -44,6 +44,9 @@ export default function RootLayout({
             <Link href="/simulation" className="text-sm font-medium text-gray-300 hover:text-white transition-colors flex items-center gap-2">
               <Settings size={16} /> Simulator
             </Link>
+            <Link href="/analyst" className="text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-2">
+              <Activity size={16} /> AI Analyst
+            </Link>
           </div>
           
           <div>
