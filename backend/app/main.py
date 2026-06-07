@@ -7,14 +7,20 @@ from app.core.config import settings, MODEL_DIR
 from app.core.logger import logger
 from app.services.huggingface_service import HuggingFaceService
 from app.services.model_registry import ModelRegistry
-from app.api.routes import health, models, prediction, metadata, metrics, auth, simulation
+from app.api.routes import health, models, prediction, metadata, metrics, auth, simulation, ingest
 from app.api.middleware.security import SecurityHeadersMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
+
+from app.db.database import engine
+from app.db.models import Base
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting up F1 AI Platform API...")
+    logger.info("Initializing database...")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     logger.info(f"Model directory resolved to: {MODEL_DIR}")
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     try:
@@ -96,3 +102,4 @@ app.include_router(metadata.router, tags=["Metadata"])
 app.include_router(metrics.router, tags=["System"])
 app.include_router(prediction.router, tags=["Prediction"])
 app.include_router(simulation.router, tags=["Simulation Engines"])
+app.include_router(ingest.router, prefix="/ingest", tags=["Data Ingestion"])

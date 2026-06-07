@@ -31,6 +31,9 @@ class Settings(BaseModel):
     # Redis
     redis_url: str = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 
+    # Database
+    database_url: str = os.environ.get("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/f1_ai_platform")
+
     # Security
     secret_key: str = os.environ.get("SECRET_KEY", "super-secret-dev-key")
     jwt_algorithm: str = os.environ.get("JWT_ALGORITHM", "HS256")
